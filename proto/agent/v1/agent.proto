@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package agent.v1;
+
+option go_package = "github.com/sciences44/recif/gen/agent/v1;agentv1";
+
+message DeployRequest {}
+message DeployResponse {}
+
+message GetRequest {}
+message GetResponse {}
+
+message ListRequest {}
+message ListResponse {}
+
+message DeleteRequest {}
+message DeleteResponse {}
+
+service AgentService {
+  rpc Deploy(DeployRequest) returns (DeployResponse);
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc List(ListRequest) returns (ListResponse);
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+}

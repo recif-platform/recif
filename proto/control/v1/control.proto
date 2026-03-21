@@ -1,0 +1,288 @@
+syntax = "proto3";
+
+package control.v1;
+
+option go_package = "github.com/sciences44/recif/gen/control/v1;controlv1";
+
+// ControlService is the dedicated Recif <-> Corail communication channel.
+// Always available on agent port 8001, regardless of agent channel type.
+service ControlService {
+  // Chat
+  rpc Chat(ChatRequest) returns (ChatResponse);
+  rpc ChatStream(ChatRequest) returns (stream ChatStreamEvent);
+
+  // Conversations
+  rpc ListConversations(ListConversationsRequest) returns (ListConversationsResponse);
+  rpc GetConversation(GetConversationRequest) returns (GetConversationResponse);
+  rpc DeleteConversation(DeleteConversationRequest) returns (DeleteConversationResponse);
+  rpc GetGenerationStatus(GetGenerationStatusRequest) returns (GetGenerationStatusResponse);
+
+  // Memory
+  rpc ListMemories(ListMemoriesRequest) returns (ListMemoriesResponse);
+  rpc MemoryStatus(MemoryStatusRequest) returns (MemoryStatusResponse);
+  rpc StoreMemory(StoreMemoryRequest) returns (StoreMemoryResponse);
+  rpc SearchMemories(SearchMemoriesRequest) returns (SearchMemoriesResponse);
+  rpc DeleteMemory(DeleteMemoryRequest) returns (DeleteMemoryResponse);
+
+  // Agent control
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
+  rpc Reload(ReloadRequest) returns (ReloadResponse);
+  rpc Pause(PauseRequest) returns (PauseResponse);
+  rpc Resume(ResumeRequest) returns (ResumeResponse);
+
+  // Events stream (server -> client)
+  rpc StreamEvents(StreamEventsRequest) returns (stream AgentEvent);
+
+  // Evaluation
+  rpc Evaluate(EvaluateRequest) returns (EvaluateResponse);
+
+  // Health
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+// --- Chat ---
+message ChatRequest {
+  string input = 1;
+  string conversation_id = 2;
+  map<string, string> options = 3;
+}
+
+message ChatResponse {
+  string output = 1;
+  string conversation_id = 2;
+}
+
+message ChatStreamEvent {
+  oneof event {
+    string token = 1;
+    ToolStartEvent tool_start = 2;
+    ToolEndEvent tool_end = 3;
+    ComponentEvent component = 4;
+    PlanEvent plan = 5;
+    DoneEvent done = 6;
+  }
+}
+
+message ToolStartEvent {
+  string tool = 1;
+  string args_json = 2;
+  string call_id = 3;
+}
+
+message ToolEndEvent {
+  string tool = 1;
+  string output = 2;
+  bool success = 3;
+  string call_id = 4;
+}
+
+message ComponentEvent {
+  string component = 1;
+  string props_json = 2;
+}
+
+message PlanEvent {
+  string plan_goal = 1;
+  string step_description = 2;
+  string step_status = 3;
+  int32 step_index = 4;
+  int32 total_steps = 5;
+}
+
+message DoneEvent {
+  string conversation_id = 1;
+}
+
+// --- Conversations ---
+message ListConversationsRequest {}
+
+message ListConversationsResponse {
+  repeated Conversation conversations = 1;
+}
+
+message Conversation {
+  string id = 1;
+  string title = 2;
+  string created_at = 3;
+  int32 message_count = 4;
+}
+
+message GetConversationRequest {
+  string conversation_id = 1;
+}
+
+message GetConversationResponse {
+  string conversation_id = 1;
+  repeated Message messages = 2;
+}
+
+message Message {
+  string role = 1;
+  string content = 2;
+}
+
+message DeleteConversationRequest {
+  string conversation_id = 1;
+}
+
+message DeleteConversationResponse {
+  bool deleted = 1;
+}
+
+message GetGenerationStatusRequest {
+  string conversation_id = 1;
+}
+
+message GetGenerationStatusResponse {
+  bool generating = 1;
+  string partial = 2;
+}
+
+// --- Memory ---
+message ListMemoriesRequest {
+  int32 limit = 1;
+}
+
+message ListMemoriesResponse {
+  repeated MemoryEntry memories = 1;
+  int32 count = 2;
+}
+
+message MemoryEntry {
+  string id = 1;
+  string content = 2;
+  string category = 3;
+  string source = 4;
+  double relevance = 5;
+  string timestamp = 6;
+}
+
+message MemoryStatusRequest {}
+
+message MemoryStatusResponse {
+  bool enabled = 1;
+  string backend = 2;
+  string backend_label = 3;
+  bool persistent = 4;
+  string search_type = 5;
+  string search_label = 6;
+  string scope = 7;
+  string scope_label = 8;
+  string storage_location = 9;
+  int32 count = 10;
+}
+
+message StoreMemoryRequest {
+  string content = 1;
+  string category = 2;
+  string source = 3;
+}
+
+message StoreMemoryResponse {
+  bool stored = 1;
+}
+
+message SearchMemoriesRequest {
+  string query = 1;
+  int32 top_k = 2;
+}
+
+message SearchMemoriesResponse {
+  repeated MemoryEntry memories = 1;
+}
+
+message DeleteMemoryRequest {
+  string entry_id = 1;
+}
+
+message DeleteMemoryResponse {
+  bool deleted = 1;
+}
+
+// --- Agent control ---
+message GetStatusRequest {}
+
+message GetStatusResponse {
+  string agent_id = 1;
+  string phase = 2;
+  int32 active_sessions = 3;
+  int32 tools_count = 4;
+  int32 kbs_count = 5;
+  int32 event_subscribers = 6;
+  int32 event_history_size = 7;
+}
+
+message UpdateConfigRequest {
+  map<string, string> config = 1;
+}
+
+message UpdateConfigResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ReloadRequest {
+  string target = 1;
+  string reason = 2;
+}
+
+message ReloadResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message PauseRequest {}
+
+message PauseResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ResumeRequest {}
+
+message ResumeResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// --- Events ---
+message StreamEventsRequest {}
+
+message AgentEvent {
+  string type = 1;
+  string data_json = 2;
+  string timestamp = 3;
+}
+
+// --- Evaluation ---
+message EvalCase {
+  string input = 1;
+  string expected_output = 2;
+}
+
+message EvaluateRequest {
+  repeated EvalCase cases = 1;
+  string agent_id = 2;
+  string agent_version = 3;
+  map<string, string> scorers_config_json = 4;
+  double min_quality_score = 5;
+  string risk_profile = 6;
+  string callback_url = 7;
+}
+
+message EvaluateResponse {
+  string run_id = 1;
+  string status = 2;
+  map<string, double> scores = 3;
+  bool passed = 4;
+  string verdict = 5;
+  string mlflow_run_id = 6;
+}
+
+// --- Health ---
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+}
