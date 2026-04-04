@@ -1,0 +1,29 @@
+version: "2"
+
+linters:
+  enable:
+    - staticcheck
+    - gosec
+    - errcheck
+    - govet
+    - ineffassign
+    - unused
+
+run:
+  timeout: 5m
+
+issues:
+  exclude-dirs:
+    - vendor
+    - dashboard
+    - widget
+    - docs
+    - gen
+  exclude-rules:
+    - path: "(.+)_test\\.go"
+      linters:
+        - gosec
+    - path: "internal/cli/"
+      linters:
+        - gosec
+      text: "G30[146]"

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Récif — Chat v2</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    background: #050d1a;
+    color: #f1f5f9;
+  }
+
+  /* Ambient reef glow */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 800px 500px at 10% 90%, rgba(6, 182, 212, 0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 600px 400px at 85% 10%, rgba(236, 72, 153, 0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Bubbles */
+  .bubble {
+    position: fixed; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(6, 182, 212, 0.2), rgba(6, 182, 212, 0.03));
+    pointer-events: none; animation: float linear infinite;
+  }
+  .bubble:nth-child(1) { width: 6px; height: 6px; left: 15%; animation-duration: 14s; }
+  .bubble:nth-child(2) { width: 4px; height: 4px; left: 50%; animation-duration: 18s; animation-delay: 4s; }
+  .bubble:nth-child(3) { width: 5px; height: 5px; left: 80%; animation-duration: 16s; animation-delay: 7s; }
+  @keyframes float {
+    0% { transform: translateY(100vh); opacity: 0; }
+    10% { opacity: 0.5; }
+    90% { opacity: 0.2; }
+    100% { transform: translateY(-20px); opacity: 0; }
+  }
+
+  .layout { display: flex; height: 100vh; position: relative; z-index: 1; }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar {
+    width: 250px;
+    background: rgba(8, 18, 35, 0.85);
+    backdrop-filter: blur(24px);
+    border-right: 1px solid rgba(6, 182, 212, 0.08);
+    display: flex; flex-direction: column;
+    padding: 20px 12px;
+  }
+  .logo { text-align: center; padding: 8px 0 32px; }
+  .logo h1 {
+    font-size: 24px; font-weight: 700;
+    background: linear-gradient(135deg, #06b6d4, #22d3ee);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .logo p { font-size: 10px; color: #475569; text-transform: uppercase; letter-spacing: 2.5px; margin-top: 2px; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 12px; font-size: 14px; font-weight: 400;
+    color: #64748b; cursor: pointer; transition: all 0.2s;
+    margin-bottom: 2px; border: 1px solid transparent;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.03); color: #94a3b8; }
+  .nav-item.active {
+    background: rgba(6, 182, 212, 0.08);
+    color: #22d3ee; font-weight: 600;
+    border-color: rgba(6, 182, 212, 0.12);
+  }
+
+  /* ─── MAIN ─── */
+  .main { flex: 1; display: flex; padding: 16px; gap: 16px; }
+
+  /* ─── LEFT PANEL ─── */
+  .panel-left { width: 300px; display: flex; flex-direction: column; gap: 14px; }
+
+  .glass-card {
+    background: rgba(15, 25, 45, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(6, 182, 212, 0.08);
+    border-radius: 16px;
+  }
+
+  /* Agent picker */
+  .agent-picker { padding: 18px; }
+  .agent-picker label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; color: #64748b; display: block; margin-bottom: 10px;
+  }
+  .agent-select {
+    width: 100%; padding: 12px 16px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    color: #f1f5f9; font-size: 14px; font-family: inherit;
+    outline: none; cursor: pointer;
+  }
+  .agent-select:focus { border-color: rgba(6, 182, 212, 0.3); }
+  .agent-select option { background: #0f1929; }
+  .agent-status {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 10px; font-size: 12px; color: #64748b;
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.5);
+  }
+
+  /* Conversations */
+  .conv-list { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .conv-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 18px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .conv-header span {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; color: #64748b;
+  }
+  .btn-new {
+    font-size: 12px; padding: 6px 14px; border-radius: 10px;
+    background: linear-gradient(135deg, rgba(6,182,212,0.15), rgba(236,72,153,0.08));
+    border: 1px solid rgba(6,182,212,0.2);
+    color: #22d3ee; cursor: pointer; font-family: inherit; font-weight: 500;
+    transition: all 0.2s;
+  }
+  .btn-new:hover { background: linear-gradient(135deg, rgba(6,182,212,0.25), rgba(236,72,153,0.12)); }
+
+  .conv-items { flex: 1; overflow-y: auto; padding: 8px; }
+  .conv-item {
+    padding: 14px; border-radius: 12px; cursor: pointer;
+    transition: all 0.15s; margin-bottom: 3px; border: 1px solid transparent;
+  }
+  .conv-item:hover { background: rgba(255,255,255,0.03); }
+  .conv-item.active {
+    background: rgba(6,182,212,0.07);
+    border-color: rgba(6,182,212,0.15);
+  }
+  .conv-title { font-size: 13px; font-weight: 500; color: #e2e8f0; margin-bottom: 5px; }
+  .conv-meta { font-size: 11px; color: #475569; display: flex; gap: 10px; }
+
+  /* ─── CHAT AREA ─── */
+  .chat-area {
+    flex: 1;
+    background: rgba(10, 20, 40, 0.6);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(6,182,212,0.06);
+    border-radius: 16px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 32px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+
+  .msg {
+    max-width: 70%; padding: 16px 20px;
+    border-radius: 18px; font-size: 15px; line-height: 1.7;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #0891b2, #06b6d4);
+    color: white; border-bottom-right-radius: 6px;
+    box-shadow: 0 4px 20px rgba(6,182,212,0.25);
+  }
+  .msg.agent {
+    align-self: flex-start;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #e2e8f0; border-bottom-left-radius: 6px;
+  }
+  .msg.agent strong { color: #22d3ee; }
+
+  .msg-label {
+    font-size: 11px; font-weight: 600; margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .msg.user .msg-label { color: rgba(255,255,255,0.5); }
+  .msg.agent .msg-label { color: #ec4899; }
+
+  .msg-list { margin: 10px 0 0; padding-left: 0; list-style: none; }
+  .msg-list li {
+    padding: 4px 0; display: flex; align-items: baseline; gap: 8px;
+  }
+  .msg-list li::before {
+    content: ''; display: inline-block; width: 5px; height: 5px;
+    border-radius: 50%; background: #22d3ee; flex-shrink: 0; margin-top: 6px;
+  }
+
+  /* Input */
+  .chat-input-area {
+    padding: 18px 24px; border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .input-wrap {
+    display: flex; gap: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 8px 8px 8px 20px;
+    align-items: center; transition: all 0.2s;
+  }
+  .input-wrap:focus-within {
+    border-color: rgba(6,182,212,0.25);
+    box-shadow: 0 0 24px rgba(6,182,212,0.06);
+  }
+  .chat-input {
+    flex: 1; background: none; border: none; outline: none;
+    color: #f1f5f9; font-size: 15px; font-family: inherit;
+  }
+  .chat-input::placeholder { color: #475569; }
+  .btn-send {
+    padding: 12px 24px; border-radius: 12px; border: none;
+    background: linear-gradient(135deg, #06b6d4, #0891b2);
+    color: white; font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: all 0.2s;
+    box-shadow: 0 2px 10px rgba(6,182,212,0.3);
+  }
+  .btn-send:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(6,182,212,0.4);
+  }
+</style>
+</head>
+<body>
+<div class="bubble"></div><div class="bubble"></div><div class="bubble"></div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="logo">
+      <svg width="48" height="48" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="c1" x1="0%" y1="100%" x2="50%" y2="0%"><stop offset="0%" stop-color="#ec4899"/><stop offset="100%" stop-color="#f472b6"/></linearGradient>
+          <linearGradient id="c2" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#67e8f9"/></linearGradient>
+        </defs>
+        <g transform="translate(60, 95)">
+          <path d="M0 0 Q-2 -20 -8 -35 Q-10 -40 -6 -48 Q-3 -55 -7 -62" stroke="url(#c1)" stroke-width="4" fill="none" stroke-linecap="round"><animate attributeName="d" values="M0 0 Q-2 -20 -8 -35 Q-10 -40 -6 -48 Q-3 -55 -7 -62;M0 0 Q-1 -20 -7 -35 Q-9 -41 -5 -49 Q-2 -56 -6 -63;M0 0 Q-2 -20 -8 -35 Q-10 -40 -6 -48 Q-3 -55 -7 -62" dur="5s" repeatCount="indefinite"/></path>
+          <path d="M-8 -35 Q-15 -42 -20 -48" stroke="url(#c1)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <circle cx="-7" cy="-62" r="2.5" fill="#ec4899" opacity="0.6"/>
+          <circle cx="-20" cy="-48" r="2" fill="#f472b6" opacity="0.5"/>
+          <path d="M8 0 Q10 -18 14 -30 Q16 -38 12 -46 Q10 -52 14 -58" stroke="url(#c2)" stroke-width="3.5" fill="none" stroke-linecap="round"><animate attributeName="d" values="M8 0 Q10 -18 14 -30 Q16 -38 12 -46 Q10 -52 14 -58;M8 0 Q11 -18 15 -30 Q17 -37 13 -45 Q11 -51 15 -57;M8 0 Q10 -18 14 -30 Q16 -38 12 -46 Q10 -52 14 -58" dur="4s" repeatCount="indefinite"/></path>
+          <circle cx="14" cy="-58" r="2.2" fill="#06b6d4" opacity="0.5"/>
+          <path d="M-14 0 Q-16 -12 -13 -22 Q-12 -28 -15 -34" stroke="#a855f7" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.4"/>
+        </g>
+        <circle cx="50" cy="48" r="2" fill="#06b6d4" opacity="0.2"><animate attributeName="cy" values="48;28;48" dur="4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.2;0.4;0.2" dur="4s" repeatCount="indefinite"/></circle>
+        <circle cx="72" cy="55" r="1.5" fill="#22d3ee" opacity="0.15"><animate attributeName="cy" values="55;35;55" dur="5s" repeatCount="indefinite"/></circle>
+      </svg>
+      <h1>Recif</h1>
+      <p>Agentic Platform</p>
+    </div>
+    <div class="nav-item active"><span>💬</span> Chat</div>
+    <div class="nav-item"><span>🤖</span> Agents</div>
+    <div class="nav-item"><span>📊</span> Evaluations</div>
+    <div class="nav-item"><span>⚙️</span> Settings</div>
+  </div>
+
+  <div class="main">
+    <div class="panel-left">
+      <div class="glass-card agent-picker">
+        <label>Agent</label>
+        <select class="agent-select">
+          <option>Dashboard Test Agent</option>
+          <option>Code Assistant</option>
+          <option>Data Analyst</option>
+        </select>
+        <div class="agent-status"><span class="status-dot"></span> Running · qwen3.5:4b</div>
+      </div>
+
+      <div class="glass-card conv-list">
+        <div class="conv-header">
+          <span>Conversations</span>
+          <button class="btn-new">+ New</button>
+        </div>
+        <div class="conv-items">
+          <div class="conv-item active">
+            <div class="conv-title">Microservices architecture</div>
+            <div class="conv-meta"><span>6 msgs</span><span>2m ago</span></div>
+          </div>
+          <div class="conv-item">
+            <div class="conv-title">What is Docker?</div>
+            <div class="conv-meta"><span>2 msgs</span><span>1h ago</span></div>
+          </div>
+          <div class="conv-item">
+            <div class="conv-title">Kubernetes basics</div>
+            <div class="conv-meta"><span>4 msgs</span><span>Yesterday</span></div>
+          </div>
+          <div class="conv-item">
+            <div class="conv-title">LLM steering techniques</div>
+            <div class="conv-meta"><span>8 msgs</span><span>2 days ago</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-area">
+      <div class="chat-messages">
+        <div class="msg user">
+          <div class="msg-label">You</div>
+          Explain microservices architecture in simple terms
+        </div>
+        <div class="msg agent">
+          <div class="msg-label">Dashboard Test Agent</div>
+          <strong>Microservices</strong> is an architectural pattern where an application is built as a collection of small, independent services that communicate over APIs.<br><br>Each service handles one specific business function and can be developed, deployed, and scaled independently.
+        </div>
+        <div class="msg user">
+          <div class="msg-label">You</div>
+          How does it compare to monolithic?
+        </div>
+        <div class="msg agent">
+          <div class="msg-label">Dashboard Test Agent</div>
+          In a <strong>monolithic</strong> architecture, everything is one big application. With microservices, you split it into smaller pieces:
+          <ul class="msg-list">
+            <li><strong>Scaling</strong> — Scale only what needs it</li>
+            <li><strong>Deployment</strong> — Deploy services independently</li>
+            <li><strong>Tech stack</strong> — Each service can use different languages</li>
+            <li><strong>Resilience</strong> — One failure doesn't crash everything</li>
+          </ul>
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <div class="input-wrap">
+          <input class="chat-input" placeholder="Message Dashboard Test Agent..." />
+          <button class="btn-send">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

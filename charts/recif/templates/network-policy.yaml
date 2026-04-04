@@ -1,0 +1,25 @@
+# Cross-team isolation — block traffic between team namespaces
+# Applied per team namespace by the operator when creating namespaces
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-cross-team
+  namespace: {{ .Values.namespaces.defaultTeam }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from same namespace
+    - from:
+        - podSelector: {}
+    # Allow from istio-system (ingress gateway)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+    # Allow from recif-system (operator, API)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: recif-system

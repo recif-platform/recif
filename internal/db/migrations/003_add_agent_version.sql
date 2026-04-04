@@ -1,0 +1,5 @@
+-- +goose Up
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS version VARCHAR(20) NOT NULL DEFAULT '0.1.0';
+
+-- +goose Down
+ALTER TABLE agents DROP COLUMN IF EXISTS version;

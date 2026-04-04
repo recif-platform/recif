@@ -1,0 +1,56 @@
+# Récif Platform — Helm Values
+# Install: helm install recif charts/recif/
+
+# --- Operator ---
+operator:
+  image: ghcr.io/sciences44/recif-operator:latest
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# --- Corail (default agent image) ---
+corail:
+  image: ghcr.io/sciences44/corail:latest
+
+# --- PostgreSQL (platform DB) ---
+postgresql:
+  enabled: true                    # false → use externalDatabase
+  image: pgvector/pgvector:pg16
+  auth:
+    postgresPassword: recif-dev
+    database: recif
+  persistence:
+    size: 10Gi
+
+externalDatabase:
+  host: ""
+  port: 5432
+  user: ""
+  password: ""
+  database: ""
+
+# --- Auth ---
+auth:
+  enabled: false                   # true in production
+  provider: "oidc"                 # oidc | aws-iam | gcp-identity
+  issuer: ""
+  jwksUri: ""
+
+# --- Observability ---
+observability:
+  metrics:
+    backend: prometheus            # prometheus | datadog
+  tracing:
+    backend: jaeger                # jaeger | zipkin | tempo
+  kiali:
+    enabled: true
+
+# --- Namespaces ---
+namespaces:
+  createDefault: true              # Create team-default namespace
+  defaultTeam: team-default
