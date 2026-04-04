@@ -1,0 +1,9 @@
+{{- if .Values.namespaces.createDefault }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.namespaces.defaultTeam }}
+  labels:
+    istio-injection: enabled
+    recif.dev/team: default
+{{- end }}

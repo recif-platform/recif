@@ -1,0 +1,43 @@
+{{- if .Values.auth.enabled }}
+# JWT validation at Istio gateway level
+apiVersion: security.istio.io/v1
+kind: RequestAuthentication
+metadata:
+  name: recif-jwt-auth
+  namespace: istio-system
+spec:
+  jwtRules:
+    - issuer: {{ .Values.auth.issuer | quote }}
+      jwksUri: {{ .Values.auth.jwksUri | quote }}
+      forwardOriginalToken: true
+      outputPayloadToHeader: x-jwt-payload
+---
+# Deny-by-default — require valid JWT for agent namespaces
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: recif-deny-default
+  namespace: istio-system
+spec:
+  action: DENY
+  rules:
+    - from:
+        - source:
+            notRequestPrincipals: ["*"]
+      to:
+        - operation:
+            notPaths: ["/healthz", "/readyz", "/healthz/", "/readyz/"]
+{{- end }}
+
+{{- if not .Values.auth.enabled }}
+# Dev mode — allow all traffic (no auth)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: recif-allow-all
+  namespace: istio-system
+spec:
+  action: ALLOW
+  rules:
+    - {}
+{{- end }}

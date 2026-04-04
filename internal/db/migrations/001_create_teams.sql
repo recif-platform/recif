@@ -1,0 +1,13 @@
+-- +goose Up
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS teams (
+    id         VARCHAR(30) PRIMARY KEY,
+    name       VARCHAR(255) NOT NULL,
+    slug       VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+-- +goose Down
+DROP TABLE IF EXISTS teams;

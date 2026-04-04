@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Récif — Depth</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', sans-serif;
+    height: 100vh; overflow: hidden;
+    background: #040e1a;
+    color: #f1f5f9;
+  }
+
+  /* Ocean floor texture + caustics */
+  .ocean-bg {
+    position: fixed; inset: 0; pointer-events: none;
+    background:
+      /* Caustic light from surface */
+      radial-gradient(ellipse 400px 250px at 35% 8%, rgba(34, 211, 238, 0.1) 0%, transparent 60%),
+      radial-gradient(ellipse 300px 200px at 65% 5%, rgba(103, 232, 249, 0.06) 0%, transparent 60%),
+      /* Depth gradient */
+      linear-gradient(180deg, rgba(34, 211, 238, 0.02) 0%, transparent 15%, transparent 85%, rgba(6, 182, 212, 0.015) 100%),
+      /* Subtle warm spots (coral bioluminescence) */
+      radial-gradient(circle 200px at 15% 80%, rgba(236, 72, 153, 0.03) 0%, transparent 60%),
+      radial-gradient(circle 150px at 90% 70%, rgba(251, 191, 36, 0.02) 0%, transparent 60%);
+    animation: causticDrift 10s ease-in-out infinite alternate;
+  }
+  @keyframes causticDrift {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(10px, 3px); }
+  }
+
+  .layout { display: flex; height: 100vh; position: relative; z-index: 1; }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar {
+    width: 250px;
+    background: rgba(4, 12, 28, 0.9);
+    backdrop-filter: blur(24px);
+    border-right: 1px solid rgba(34, 211, 238, 0.06);
+    display: flex; flex-direction: column;
+    padding: 20px 12px;
+  }
+  .logo { text-align: center; padding: 8px 0 32px; }
+  .logo h1 {
+    font-size: 24px; font-weight: 700;
+    background: linear-gradient(135deg, #22d3ee, #67e8f9);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .logo p { font-size: 10px; color: #475569; text-transform: uppercase; letter-spacing: 2.5px; margin-top: 2px; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 12px; font-size: 14px;
+    color: #94a3b8; cursor: pointer; transition: all 0.2s;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { background: rgba(34, 211, 238, 0.05); color: #cbd5e1; }
+  .nav-item.active {
+    background: rgba(34, 211, 238, 0.08);
+    color: #22d3ee; font-weight: 600;
+    border: 1px solid rgba(34, 211, 238, 0.1);
+  }
+
+  /* ─── MAIN ─── */
+  .main { flex: 1; display: flex; padding: 16px; gap: 16px; }
+  .panel-left { width: 300px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* ═══════════════════════════════════════
+     REEF GLASS — thick glass panel effect
+     ═══════════════════════════════════════ */
+  .reef-glass {
+    position: relative;
+    border-radius: 18px;
+    /* Base: dark translucent fill */
+    background: linear-gradient(165deg,
+      rgba(20, 40, 65, 0.85) 0%,
+      rgba(12, 28, 50, 0.9) 40%,
+      rgba(10, 24, 45, 0.92) 100%
+    );
+    backdrop-filter: blur(20px) saturate(1.2);
+    /* Layered shadows for depth/volume */
+    box-shadow:
+      /* Top light edge — like light hitting glass from above */
+      inset 0 1px 0 rgba(34, 211, 238, 0.12),
+      inset 0 2px 4px rgba(34, 211, 238, 0.04),
+      /* Left light edge */
+      inset 1px 0 0 rgba(34, 211, 238, 0.06),
+      /* Bottom inner shadow — glass thickness */
+      inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+      inset 0 -3px 6px rgba(0, 0, 0, 0.1),
+      /* Outer drop shadow — floating effect */
+      0 4px 8px rgba(0, 0, 0, 0.2),
+      0 12px 28px rgba(0, 0, 0, 0.25),
+      /* Subtle cyan ambient glow underneath */
+      0 8px 32px rgba(6, 182, 212, 0.04);
+    border: 1px solid rgba(34, 211, 238, 0.1);
+    overflow: hidden;
+  }
+  /* Top highlight band — simulates light refraction on glass edge */
+  .reef-glass::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 40px;
+    background: linear-gradient(180deg,
+      rgba(34, 211, 238, 0.06) 0%,
+      rgba(34, 211, 238, 0.02) 40%,
+      transparent 100%
+    );
+    border-radius: 18px 18px 0 0;
+    pointer-events: none;
+  }
+
+  /* Agent picker */
+  .agent-picker { padding: 20px; position: relative; z-index: 1; }
+  .agent-picker label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; color: #64748b; margin-bottom: 10px; display: block;
+  }
+  .agent-select {
+    width: 100%; padding: 12px 16px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    color: #f1f5f9; font-size: 14px; font-family: inherit; outline: none; cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 4px rgba(0,0,0,0.15);
+    transition: all 0.2s;
+  }
+  .agent-select:focus {
+    border-color: rgba(34, 211, 238, 0.3);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 16px rgba(6,182,212,0.1);
+  }
+  .agent-select option { background: #0c1c32; }
+  .agent-status {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 12px; font-size: 12px; color: #64748b;
+  }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.5); }
+
+  /* Conversations */
+  .conv-list { flex: 1; display: flex; flex-direction: column; }
+  .conv-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 18px; border-bottom: 1px solid rgba(255,255,255,0.05);
+    position: relative; z-index: 1;
+  }
+  .conv-header span { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #64748b; }
+
+  /* Glass button with volume */
+  .btn-glass {
+    font-size: 12px; padding: 7px 16px; border-radius: 10px;
+    background: linear-gradient(180deg,
+      rgba(34, 211, 238, 0.18) 0%,
+      rgba(34, 211, 238, 0.08) 100%
+    );
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    color: #22d3ee; cursor: pointer; font-family: inherit; font-weight: 500;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.1),
+      inset 0 -1px 0 rgba(0,0,0,0.15),
+      0 2px 6px rgba(0,0,0,0.2);
+    transition: all 0.2s;
+  }
+  .btn-glass:hover {
+    background: linear-gradient(180deg, rgba(34, 211, 238, 0.25), rgba(34, 211, 238, 0.12));
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.15),
+      inset 0 -1px 0 rgba(0,0,0,0.1),
+      0 4px 12px rgba(6,182,212,0.15);
+    transform: translateY(-1px);
+  }
+  .btn-glass:active {
+    transform: translateY(0);
+    box-shadow:
+      inset 0 1px 3px rgba(0,0,0,0.2),
+      0 1px 2px rgba(0,0,0,0.15);
+  }
+
+  .conv-items { flex: 1; overflow-y: auto; padding: 8px; position: relative; z-index: 1; }
+  .conv-item {
+    padding: 14px; border-radius: 12px; cursor: pointer;
+    transition: all 0.15s; margin-bottom: 3px; border: 1px solid transparent;
+  }
+  .conv-item:hover { background: rgba(255,255,255,0.03); }
+  .conv-item.active {
+    background: rgba(34, 211, 238, 0.06);
+    border-color: rgba(34, 211, 238, 0.12);
+    box-shadow: inset 0 0 16px rgba(6,182,212,0.03), 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .conv-title { font-size: 13px; font-weight: 500; color: #e2e8f0; margin-bottom: 5px; }
+  .conv-meta { font-size: 11px; color: #64748b; display: flex; gap: 10px; }
+
+  /* ─── CHAT AREA ─── */
+  .chat-area {
+    flex: 1;
+    display: flex; flex-direction: column;
+    position: relative;
+    border-radius: 18px;
+    background: linear-gradient(165deg,
+      rgba(16, 32, 55, 0.85) 0%,
+      rgba(10, 24, 45, 0.9) 50%,
+      rgba(8, 20, 40, 0.92) 100%
+    );
+    backdrop-filter: blur(20px) saturate(1.2);
+    box-shadow:
+      inset 0 1px 0 rgba(34, 211, 238, 0.1),
+      inset 0 2px 4px rgba(34, 211, 238, 0.03),
+      inset 1px 0 0 rgba(34, 211, 238, 0.05),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+      0 4px 8px rgba(0, 0, 0, 0.2),
+      0 16px 40px rgba(0, 0, 0, 0.3),
+      0 8px 32px rgba(6, 182, 212, 0.03);
+    border: 1px solid rgba(34, 211, 238, 0.08);
+    overflow: hidden;
+  }
+  .chat-area::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 50px;
+    background: linear-gradient(180deg, rgba(34, 211, 238, 0.05), transparent);
+    border-radius: 18px 18px 0 0;
+    pointer-events: none; z-index: 0;
+  }
+
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 32px;
+    display: flex; flex-direction: column; gap: 22px;
+    position: relative; z-index: 1;
+  }
+
+  /* Message bubbles with volume */
+  .msg {
+    max-width: 70%; padding: 16px 20px;
+    border-radius: 18px; font-size: 15px; line-height: 1.7;
+    position: relative;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: linear-gradient(165deg, #0ea5e9, #0891b2);
+    color: white; border-bottom-right-radius: 6px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.15),
+      inset 0 -1px 2px rgba(0,0,0,0.1),
+      0 4px 16px rgba(6,182,212,0.3),
+      0 8px 24px rgba(0,0,0,0.15);
+  }
+  .msg.agent {
+    align-self: flex-start;
+    background: linear-gradient(165deg,
+      rgba(30, 50, 75, 0.9) 0%,
+      rgba(20, 38, 62, 0.92) 100%
+    );
+    border: 1px solid rgba(34, 211, 238, 0.08);
+    color: #e2e8f0; border-bottom-left-radius: 6px;
+    box-shadow:
+      inset 0 1px 0 rgba(34, 211, 238, 0.08),
+      inset 0 -1px 0 rgba(0,0,0,0.2),
+      0 4px 12px rgba(0,0,0,0.2),
+      0 8px 24px rgba(0,0,0,0.1);
+  }
+  .msg.agent strong { color: #22d3ee; }
+
+  .msg-label {
+    font-size: 11px; font-weight: 600; margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .msg.user .msg-label { color: rgba(255,255,255,0.5); }
+  .msg.agent .msg-label { color: #f472b6; }
+
+  .msg-list { margin: 10px 0 0; padding: 0; list-style: none; }
+  .msg-list li { padding: 5px 0; display: flex; gap: 10px; }
+  .msg-list li::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: #22d3ee; flex-shrink: 0; margin-top: 8px;
+    box-shadow: 0 0 6px rgba(34, 211, 238, 0.3);
+  }
+
+  /* Input area */
+  .chat-input-area {
+    padding: 18px 24px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    position: relative; z-index: 1;
+  }
+  .input-wrap {
+    display: flex; gap: 12px;
+    background: linear-gradient(165deg, rgba(20, 38, 62, 0.8), rgba(14, 30, 52, 0.85));
+    border: 1px solid rgba(34, 211, 238, 0.1);
+    border-radius: 14px;
+    padding: 8px 8px 8px 20px;
+    align-items: center;
+    box-shadow:
+      inset 0 1px 0 rgba(34, 211, 238, 0.06),
+      inset 0 -1px 0 rgba(0,0,0,0.15),
+      0 4px 12px rgba(0,0,0,0.2);
+    transition: all 0.2s;
+  }
+  .input-wrap:focus-within {
+    border-color: rgba(34, 211, 238, 0.2);
+    box-shadow:
+      inset 0 1px 0 rgba(34, 211, 238, 0.08),
+      inset 0 -1px 0 rgba(0,0,0,0.1),
+      0 4px 12px rgba(0,0,0,0.2),
+      0 0 24px rgba(6,182,212,0.06);
+  }
+  .chat-input {
+    flex: 1; background: none; border: none; outline: none;
+    color: #f1f5f9; font-size: 15px; font-family: inherit;
+  }
+  .chat-input::placeholder { color: #475569; }
+
+  .btn-send {
+    padding: 12px 24px; border-radius: 12px; border: none;
+    background: linear-gradient(180deg, #0ea5e9, #0891b2);
+    color: white; font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.2),
+      inset 0 -1px 0 rgba(0,0,0,0.15),
+      0 2px 8px rgba(6,182,212,0.35),
+      0 6px 20px rgba(0,0,0,0.2);
+    transition: all 0.2s;
+  }
+  .btn-send:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.25),
+      inset 0 -1px 0 rgba(0,0,0,0.1),
+      0 4px 16px rgba(6,182,212,0.45),
+      0 8px 24px rgba(0,0,0,0.25);
+  }
+  .btn-send:active {
+    transform: translateY(0);
+    box-shadow:
+      inset 0 2px 4px rgba(0,0,0,0.2),
+      0 1px 4px rgba(6,182,212,0.2);
+  }
+</style>
+</head>
+<body>
+<div class="ocean-bg"></div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="logo">
+      <svg width="48" height="48" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="c1" x1="0%" y1="100%" x2="50%" y2="0%"><stop offset="0%" stop-color="#ec4899"/><stop offset="100%" stop-color="#f472b6"/></linearGradient>
+          <linearGradient id="c2" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#67e8f9"/></linearGradient>
+        </defs>
+        <g transform="translate(60, 95)">
+          <path d="M0 0 Q-2 -20 -8 -35 Q-10 -40 -6 -48 Q-3 -55 -7 -62" stroke="url(#c1)" stroke-width="4" fill="none" stroke-linecap="round"><animate attributeName="d" values="M0 0 Q-2 -20 -8 -35 Q-10 -40 -6 -48 Q-3 -55 -7 -62;M0 0 Q-1 -20 -7 -35 Q-9 -41 -5 -49 Q-2 -56 -6 -63;M0 0 Q-2 -20 -8 -35 Q-10 -40 -6 -48 Q-3 -55 -7 -62" dur="5s" repeatCount="indefinite"/></path>
+          <path d="M-8 -35 Q-15 -42 -20 -48" stroke="url(#c1)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <circle cx="-7" cy="-62" r="2.5" fill="#ec4899" opacity="0.6"/>
+          <path d="M8 0 Q10 -18 14 -30 Q16 -38 12 -46 Q10 -52 14 -58" stroke="url(#c2)" stroke-width="3.5" fill="none" stroke-linecap="round"><animate attributeName="d" values="M8 0 Q10 -18 14 -30 Q16 -38 12 -46 Q10 -52 14 -58;M8 0 Q11 -18 15 -30 Q17 -37 13 -45 Q11 -51 15 -57;M8 0 Q10 -18 14 -30 Q16 -38 12 -46 Q10 -52 14 -58" dur="4s" repeatCount="indefinite"/></path>
+          <circle cx="14" cy="-58" r="2.2" fill="#06b6d4" opacity="0.5"/>
+          <path d="M-14 0 Q-16 -12 -13 -22 Q-12 -28 -15 -34" stroke="#a855f7" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.4"/>
+        </g>
+        <circle cx="50" cy="48" r="2" fill="#06b6d4" opacity="0.2"><animate attributeName="cy" values="48;28;48" dur="4s" repeatCount="indefinite"/></circle>
+      </svg>
+      <h1>Recif</h1>
+      <p>Agentic Platform</p>
+    </div>
+    <div class="nav-item active"><span>💬</span> Chat</div>
+    <div class="nav-item"><span>🤖</span> Agents</div>
+    <div class="nav-item"><span>📊</span> Evaluations</div>
+    <div class="nav-item"><span>⚙️</span> Settings</div>
+  </div>
+
+  <div class="main">
+    <div class="panel-left">
+      <div class="reef-glass agent-picker">
+        <label>Agent</label>
+        <select class="agent-select">
+          <option>Dashboard Test Agent</option>
+          <option>Code Assistant</option>
+          <option>Data Analyst</option>
+        </select>
+        <div class="agent-status"><span class="status-dot"></span> Running · qwen3.5:4b</div>
+      </div>
+
+      <div class="reef-glass conv-list">
+        <div class="conv-header">
+          <span>Conversations</span>
+          <button class="btn-glass">+ New</button>
+        </div>
+        <div class="conv-items">
+          <div class="conv-item active">
+            <div class="conv-title">Microservices architecture</div>
+            <div class="conv-meta"><span>6 msgs</span><span>2m ago</span></div>
+          </div>
+          <div class="conv-item">
+            <div class="conv-title">What is Docker?</div>
+            <div class="conv-meta"><span>2 msgs</span><span>1h ago</span></div>
+          </div>
+          <div class="conv-item">
+            <div class="conv-title">Kubernetes basics</div>
+            <div class="conv-meta"><span>4 msgs</span><span>Yesterday</span></div>
+          </div>
+          <div class="conv-item">
+            <div class="conv-title">LLM steering techniques</div>
+            <div class="conv-meta"><span>8 msgs</span><span>2 days ago</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-area">
+      <div class="chat-messages">
+        <div class="msg user">
+          <div class="msg-label">You</div>
+          Explain microservices architecture in simple terms
+        </div>
+        <div class="msg agent">
+          <div class="msg-label">Dashboard Test Agent</div>
+          <strong>Microservices</strong> is an architectural pattern where an application is built as a collection of small, independent services that communicate over APIs.<br><br>Each service handles one specific business function and can be developed, deployed, and scaled independently.
+        </div>
+        <div class="msg user">
+          <div class="msg-label">You</div>
+          How does it compare to monolithic?
+        </div>
+        <div class="msg agent">
+          <div class="msg-label">Dashboard Test Agent</div>
+          In a <strong>monolithic</strong> architecture, everything is one big application. With microservices:
+          <ul class="msg-list">
+            <li><strong>Scaling</strong> — Scale only what needs it</li>
+            <li><strong>Deployment</strong> — Deploy services independently</li>
+            <li><strong>Tech stack</strong> — Each service can use different languages</li>
+            <li><strong>Resilience</strong> — One failure doesn't crash everything</li>
+          </ul>
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <div class="input-wrap">
+          <input class="chat-input" placeholder="Message Dashboard Test Agent..." />
+          <button class="btn-send">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

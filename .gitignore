@@ -1,0 +1,48 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test
+coverage.out
+coverage.html
+
+# Vendor
+vendor/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+tmp/
+
+# Node.js
+node_modules/
+dashboard/.next/
+dashboard/out/
+
+# Generated proto code — committed for reproducible builds
+# Regenerate with: make proto-gen
+# gen/
+
+# TLS certificates (contents ignored, .gitkeep tracked)
+certs/*
+!certs/.gitkeep
+dashboard/certs/*
+!dashboard/certs/.gitkeep

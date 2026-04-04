@@ -1,0 +1,9 @@
+.git
+.github
+dashboard
+widget
+docs
+node_modules
+.next
+*.md
+!maree/README.md

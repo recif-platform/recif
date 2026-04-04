@@ -1,0 +1,2 @@
+[console_scripts]
+maree = maree.cli:main

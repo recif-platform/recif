@@ -1,0 +1,19 @@
+apiVersion: v2
+name: recif
+description: "Récif — Open-source agentic platform for AI agent governance, evaluation, and deployment on Kubernetes"
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/recif-platform/recif
+sources:
+  - https://github.com/recif-platform/recif
+  - https://github.com/recif-platform/corail
+keywords:
+  - ai-agents
+  - kubernetes-operator
+  - governance
+  - evaluation
+  - istio
+maintainers:
+  - name: Adham
+    url: https://github.com/recif-platform

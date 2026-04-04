@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package governance.v1;
+
+option go_package = "github.com/sciences44/recif/gen/governance/v1;governancev1";
+
+message CheckGateRequest {}
+message CheckGateResponse {}
+
+message GetPolicyRequest {}
+message GetPolicyResponse {}
+
+service GovernanceService {
+  rpc CheckGate(CheckGateRequest) returns (CheckGateResponse);
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
+}

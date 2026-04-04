@@ -1,0 +1,6 @@
+:host {
+  --widget-accent: #06b6d4;
+  --widget-accent-bg: rgba(6, 182, 212, 0.1);
+  --widget-glass-bg: rgba(255, 255, 255, 0.85);
+  --widget-radius: 20px;
+}

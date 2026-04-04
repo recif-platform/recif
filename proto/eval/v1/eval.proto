@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package eval.v1;
+
+option go_package = "github.com/sciences44/recif/gen/eval/v1;evalv1";
+
+message RunRequest {}
+message RunResponse {}
+
+message GetResultsRequest {}
+message GetResultsResponse {}
+
+message CompareRequest {}
+message CompareResponse {}
+
+service EvalService {
+  rpc Run(RunRequest) returns (RunResponse);
+  rpc GetResults(GetResultsRequest) returns (GetResultsResponse);
+  rpc Compare(CompareRequest) returns (CompareResponse);
+}

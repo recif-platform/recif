@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recif-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: recif-operator
+    app.kubernetes.io/part-of: recif
+spec:
+  replicas: {{ .Values.operator.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: recif-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: recif-operator
+        app.kubernetes.io/part-of: recif
+    spec:
+      serviceAccountName: recif-operator
+      containers:
+        - name: operator
+          image: {{ .Values.operator.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+              name: health
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+          resources:
+            {{- toYaml .Values.operator.resources | nindent 12 }}
