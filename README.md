@@ -154,6 +154,45 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 ---
 
+## Roadmap
+
+### Core Platform
+
+| Feature | Status | Description |
+|---------|:------:|-------------|
+| Agent CRUD + CRDs | 🟢 | Create, deploy, stop, restart agents via API and dashboard |
+| Multi-LLM providers | 🟢 | Vertex AI, OpenAI, Anthropic, Bedrock, Ollama, Google AI (7 providers) |
+| SSE streaming chat | 🟢 | Real-time agent responses with AG-UI rich rendering |
+| Knowledge Bases (RAG) | 🟢 | Document ingestion, semantic chunking, pgvector, agentic retrieval |
+| Eval-driven releases | 🟢 | MLflow GenAI, 14 scorers, golden datasets, quality gates |
+| Canary deployments | 🟢 | Istio traffic splitting, Flagger webhooks, one-click promote/rollback |
+| Secret management | 🟢 | 3 modes: inline, External Secrets (Vault/GCP SM/AWS), Workload Identity |
+| Helm one-command install | 🟢 | Full platform in a single `helm install` |
+
+### In Progress
+
+| Feature | Status | Description |
+|---------|:------:|-------------|
+| Agent Marketplace | 🟠 | Users browse and subscribe to published agents |
+| Admin / User roles | 🟠 | Role separation: admins manage, users consume via marketplace |
+| Agent publish flow | 🟠 | Creator tests, evaluates, then publishes to marketplace |
+| Governance scorecards | 🟡 | 4-dimension scoring (quality, safety, cost, compliance) |
+| Agent memory inheritance | 🟡 | Versioned memory artifacts, inheritable across agents |
+
+### Planned
+
+| Feature | Status | Description |
+|---------|:------:|-------------|
+| Multi-tenant namespaces | 🔴 | Team isolation with per-namespace quotas and RBAC |
+| MCP tool marketplace | 🔴 | Share and discover MCP-compatible tools across teams |
+| Prompt registry | 🔴 | Versioned prompt templates synced to MLflow |
+| Cost tracking | 🔴 | Per-agent token usage, budget alerts, cost allocation |
+| Audit trail | 🔴 | Full audit log for compliance (who changed what, when) |
+
+> 🟢 Done  🟠 In progress  🟡 Designed  🔴 Planned
+
+---
+
 ## Contributing
 
 1. Fork the repository
