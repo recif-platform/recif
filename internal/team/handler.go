@@ -12,14 +12,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/oklog/ulid/v2"
 
+	"github.com/sciences44/recif/internal/auth"
 	"github.com/sciences44/recif/internal/httputil"
 	"github.com/sciences44/recif/internal/server/middleware"
 )
 
-const (
-	defaultTeamID    = "tk_DEFAULT000000000000000000"
-	defaultNamespace = "team-default"
-)
+const defaultNamespace = "team-default"
 
 // validRoles is the set of allowed member roles.
 var validRoles = map[string]bool{
@@ -52,7 +50,7 @@ func (h *Handler) seed() {
 	now := time.Now().UTC()
 
 	defaultTeam := Team{
-		ID:          defaultTeamID,
+		ID:          auth.DefaultTeamID,
 		Name:        "Default",
 		Slug:        "default",
 		Description: "Default platform team",
@@ -62,8 +60,8 @@ func (h *Handler) seed() {
 		CreatedAt:   now,
 	}
 
-	h.teams[defaultTeamID] = defaultTeam
-	h.members[defaultTeamID] = []TeamMember{
+	h.teams[auth.DefaultTeamID] = defaultTeam
+	h.members[auth.DefaultTeamID] = []TeamMember{
 		{
 			UserID:   "us_DEV00000000000000000000",
 			Email:    "adham@recif.dev",
@@ -347,7 +345,7 @@ func (h *Handler) canManageTeam(r *http.Request, teamID string) bool {
 		return true
 	}
 
-	claims := middleware.GetClaims(r.Context())
+	claims := auth.GetClaims(r.Context())
 	if claims == nil || claims.TeamID != teamID {
 		return false
 	}

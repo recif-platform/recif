@@ -108,18 +108,15 @@ func main() {
 	}
 }
 
-// bootstrapAdmin creates the first admin user if no users exist, or updates an
-// existing seeded user that has an empty password (artifact of migration seeding).
+// bootstrapAdmin creates the first admin user if no users exist, or sets credentials
+// on an existing seeded user that has an empty password (artifact of migration seeding).
 func bootstrapAdmin(ctx context.Context, pool *pgxpool.Pool, cfg config.Config, logger *slog.Logger) {
 	repo := user.NewRepository(dbgen.New(pool))
 
-	// Try to find the configured admin email first.
-	existing, _ := repo.GetByEmail(ctx, cfg.AdminEmail)
+	// Single query covers both existence check and hash check.
+	existing, hash, _ := repo.GetByEmailForLogin(ctx, cfg.AdminEmail)
 	if existing != nil {
-		// User exists — check if password_hash is empty (seeded without credentials).
-		_, hash, _ := repo.GetHashByEmail(ctx, cfg.AdminEmail)
 		if hash == "" {
-			// Set the password and update name.
 			if err := repo.UpdatePassword(ctx, existing.ID, cfg.AdminPassword); err != nil {
 				logger.Error("failed to set password for seeded admin", "error", err)
 				return

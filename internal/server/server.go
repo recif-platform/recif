@@ -24,7 +24,6 @@ import (
 	"github.com/sciences44/recif/internal/release"
 	"github.com/sciences44/recif/internal/scaffold"
 	"github.com/sciences44/recif/internal/skill"
-	"github.com/sciences44/recif/internal/server/middleware"
 	"github.com/sciences44/recif/internal/team"
 	"github.com/sciences44/recif/internal/user"
 )
@@ -107,7 +106,7 @@ func New(cfg config.Config, logger *slog.Logger, agentRepo agent.Repository, kbS
 		userRepo := user.NewRepository(db.New(dbPool))
 		authH = auth.NewHandler(userRepo, jwtProvider, logger)
 		userH = user.NewHandler(userRepo, logger, func(ctx context.Context) bool {
-			claims := middleware.GetClaims(ctx)
+			claims := auth.GetClaims(ctx)
 			return claims != nil && (claims.Role == "admin" || claims.Role == "platform_admin")
 		})
 	}

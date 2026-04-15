@@ -141,17 +141,11 @@ function useCurrentUser() {
   return user;
 }
 
-function handleSignOut() {
-  clearToken();
-  window.location.href = "/login";
-}
-
 function UserAvatar() {
   const { colors, theme } = useTheme();
   const user = useCurrentUser();
 
   const displayName = user?.name ?? "—";
-  const displayRole = user?.role ?? "admin";
   const initial = displayName.charAt(0).toUpperCase() || "?";
 
   return (
@@ -172,7 +166,7 @@ function UserAvatar() {
           cursor: "pointer",
         }}
         title="Sign out"
-        onClick={handleSignOut}
+        onClick={() => { clearToken(); window.location.href = "/login"; }}
       >
         {initial}
       </div>
@@ -181,23 +175,25 @@ function UserAvatar() {
           <span style={{ fontSize: 14, fontWeight: 600, color: colors.textPrimary }}>
             {displayName}
           </span>
-          <span
-            style={{
-              fontSize: 9,
-              fontWeight: 600,
-              padding: "1px 6px",
-              borderRadius: 6,
-              background: theme === "dark"
-                ? "linear-gradient(165deg, rgba(20, 40, 65, 0.85), rgba(12, 28, 50, 0.9))"
-                : colors.accentBg,
-              border: `1px solid ${colors.accentBorder}`,
-              color: colors.accent,
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-            }}
-          >
-            {displayRole}
-          </span>
+          {user?.role && (
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 600,
+                padding: "1px 6px",
+                borderRadius: 6,
+                background: theme === "dark"
+                  ? "linear-gradient(165deg, rgba(20, 40, 65, 0.85), rgba(12, 28, 50, 0.9))"
+                  : colors.accentBg,
+                border: `1px solid ${colors.accentBorder}`,
+                color: colors.accent,
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
+              {user.role}
+            </span>
+          )}
         </div>
         {user?.email && (
           <span style={{ fontSize: 12, color: colors.textMuted }}>{user.email}</span>

@@ -21,7 +21,3 @@ export function getAuthHeaders(): HeadersInit {
   if (!token) return {};
   return { Authorization: `Bearer ${token}` };
 }
-
-export function isAuthenticated(): boolean {
-  return !!getToken();
-}

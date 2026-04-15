@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	defaultTeamID    = "tk_DEFAULT000000000000000000"
 	defaultNamespace = "team-default"
 	defaultUserID    = "us_DEV00000000000000000000"
 	defaultRole      = "admin"
@@ -42,7 +41,7 @@ func Auth(provider auth.AuthProvider, authEnabled bool) func(http.Handler) http.
 				// Dev mode, no token: inject default dev claims.
 				ctx := auth.SetClaims(r.Context(), &auth.Claims{
 					UserID: defaultUserID,
-					TeamID: defaultTeamID,
+					TeamID: auth.DefaultTeamID,
 					Role:   defaultRole,
 				})
 				next.ServeHTTP(w, r.WithContext(ctx))
@@ -55,25 +54,20 @@ func Auth(provider auth.AuthProvider, authEnabled bool) func(http.Handler) http.
 	}
 }
 
-// GetClaims extracts auth claims from request context.
-func GetClaims(ctx context.Context) *auth.Claims {
-	return auth.GetClaims(ctx)
-}
-
 // TeamFromContext extracts the team ID from context.
 // Returns the default team ID if no claims are present.
 func TeamFromContext(ctx context.Context) string {
-	if claims := GetClaims(ctx); claims != nil && claims.TeamID != "" {
+	if claims := auth.GetClaims(ctx); claims != nil && claims.TeamID != "" {
 		return claims.TeamID
 	}
-	return defaultTeamID
+	return auth.DefaultTeamID
 }
 
 // NamespaceFromContext derives the K8s namespace from the team in context.
 // Convention: team ID "tk_XXXX" maps to namespace "team-xxxx" (lowercase slug).
 // Falls back to the default namespace.
 func NamespaceFromContext(ctx context.Context) string {
-	if claims := GetClaims(ctx); claims != nil && claims.TeamID != "" {
+	if claims := auth.GetClaims(ctx); claims != nil && claims.TeamID != "" {
 		return teamIDToNamespace(claims.TeamID)
 	}
 	return defaultNamespace
@@ -81,7 +75,7 @@ func NamespaceFromContext(ctx context.Context) string {
 
 // IsPlatformAdmin checks if the user has platform-wide admin role.
 func IsPlatformAdmin(ctx context.Context) bool {
-	if claims := GetClaims(ctx); claims != nil {
+	if claims := auth.GetClaims(ctx); claims != nil {
 		return claims.Role == "platform_admin"
 	}
 	return false

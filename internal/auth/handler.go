@@ -12,9 +12,10 @@ import (
 	"github.com/sciences44/recif/internal/user"
 )
 
-// UserReader is the subset of user.Repository needed by the auth handler.
-type UserReader interface {
+// UserManager is the subset of user.Repository needed by the auth handler.
+type UserManager interface {
 	GetByID(ctx context.Context, id string) (*user.User, error)
+	GetByEmailForLogin(ctx context.Context, email string) (*user.User, string, error)
 	GetHashByEmail(ctx context.Context, email string) (id, hash string, err error)
 	UpdateProfile(ctx context.Context, id, name, email string) (*user.User, error)
 	UpdatePassword(ctx context.Context, id, plainPassword string) error
@@ -22,13 +23,13 @@ type UserReader interface {
 
 // Handler provides HTTP handlers for auth flows.
 type Handler struct {
-	users  UserReader
+	users  UserManager
 	jwt    *LocalJWTProvider
 	logger *slog.Logger
 }
 
 // NewHandler creates a new auth Handler.
-func NewHandler(users UserReader, jwt *LocalJWTProvider, logger *slog.Logger) *Handler {
+func NewHandler(users UserManager, jwt *LocalJWTProvider, logger *slog.Logger) *Handler {
 	return &Handler{users: users, jwt: jwt, logger: logger}
 }
 
@@ -56,7 +57,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, hash, err := h.users.GetHashByEmail(r.Context(), req.Email)
+	u, hash, err := h.users.GetByEmailForLogin(r.Context(), req.Email)
 	if err != nil {
 		// Constant-time response to prevent user enumeration.
 		httputil.WriteError(w, http.StatusUnauthorized, "Unauthorized", "Invalid email or password", r.URL.Path)
@@ -68,19 +69,14 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.users.GetByID(r.Context(), id)
-	if err != nil {
-		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to load user", r.URL.Path)
-		return
-	}
-
 	token, err := h.jwt.IssueToken(&Claims{
 		UserID: u.ID,
-		TeamID: "tk_DEFAULT000000000000000000",
+		TeamID: DefaultTeamID,
 		Role:   u.Role,
 		Email:  u.Email,
 	})
 	if err != nil {
+		h.logger.Error("failed to issue token", "error", err, "user_id", u.ID)
 		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to issue token", r.URL.Path)
 		return
 	}
@@ -98,6 +94,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 
 	u, err := h.users.GetByID(r.Context(), claims.UserID)
 	if err != nil {
+		h.logger.Error("failed to load user for /me", "error", err, "user_id", claims.UserID)
 		httputil.WriteError(w, http.StatusNotFound, "Not Found", "User not found", r.URL.Path)
 		return
 	}
@@ -125,6 +122,7 @@ func (h *Handler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 
 	u, err := h.users.UpdateProfile(r.Context(), claims.UserID, req.Name, claims.Email)
 	if err != nil {
+		h.logger.Error("failed to update profile", "error", err, "user_id", claims.UserID)
 		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to update profile", r.URL.Path)
 		return
 	}
@@ -156,6 +154,7 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	_, hash, err := h.users.GetHashByEmail(r.Context(), claims.Email)
 	if err != nil {
+		h.logger.Error("failed to fetch hash for password change", "error", err, "user_id", claims.UserID)
 		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to verify current password", r.URL.Path)
 		return
 	}
@@ -166,6 +165,7 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.users.UpdatePassword(r.Context(), claims.UserID, req.NewPassword); err != nil {
+		h.logger.Error("failed to update password", "error", err, "user_id", claims.UserID)
 		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to change password", r.URL.Path)
 		return
 	}

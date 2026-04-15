@@ -61,6 +61,19 @@ func (r *Repository) GetHashByEmail(ctx context.Context, email string) (id, hash
 	return row.ID, row.PasswordHash, nil
 }
 
+// GetByEmailForLogin returns the full user and their bcrypt hash in one query.
+// Use this instead of GetByEmail + GetHashByEmail to avoid a redundant round-trip.
+func (r *Repository) GetByEmailForLogin(ctx context.Context, email string) (*User, string, error) {
+	row, err := r.q.GetUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, "", ErrNotFound
+		}
+		return nil, "", fmt.Errorf("get user by email: %w", err)
+	}
+	return rowToUser(row), row.PasswordHash, nil
+}
+
 func (r *Repository) Create(ctx context.Context, id, email, name, role, plainPassword string) (*User, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(plainPassword), bcrypt.DefaultCost)
 	if err != nil {

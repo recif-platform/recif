@@ -2,6 +2,9 @@ package auth
 
 import "context"
 
+// DefaultTeamID is the pre-seeded team used when no multi-tenancy is configured.
+const DefaultTeamID = "tk_DEFAULT000000000000000000"
+
 // Claims represents the authenticated user claims extracted from a token.
 type Claims struct {
 	UserID string `json:"user_id"`
