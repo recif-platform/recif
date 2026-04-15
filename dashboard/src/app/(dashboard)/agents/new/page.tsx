@@ -62,7 +62,7 @@ const STEP_DOCS: Record<string, string> = {
   Prompt: "/guides/create-agent",
   Tools: "/guides/create-agent",
   Skills: "/guides/create-agent",
-  Channel: "/guides/create-agent",
+  Channel: "/corail/channels",
   Framework: "/quickstart",
   Capabilities: "/guides/governance",
   Delivery: "/quickstart",
@@ -556,11 +556,22 @@ export default function CreateAgentWizard() {
             {channel === "discord" && (
               <div className="mt-3 p-3 rounded-xl" style={{ background: "rgba(34,211,238,0.05)", border: "1px solid rgba(34,211,238,0.15)" }}>
                 <p className="text-xs" style={{ color: "#94a3b8" }}>
-                  Create a K8s Secret with your Discord bot token before deploying:
+                  Create a Discord bot at{" "}
+                  <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" style={{ color: "#22d3ee" }}>
+                    discord.com/developers
+                  </a>
+                  , then store the token as a K8s Secret:
                 </p>
                 <code className="block text-xs mt-2" style={{ color: "#22d3ee", fontFamily: "monospace", lineHeight: 1.6 }}>
-                  kubectl create secret generic {name ? `${name.toLowerCase().replace(/\s+/g, "-")}` : "{agent}"}-discord -n team-default --from-literal=DISCORD_TOKEN=your-token
+                  kubectl create secret generic discord-bot -n team-default --from-literal=DISCORD_BOT_TOKEN=your-token
                 </code>
+                <p className="text-xs mt-2" style={{ color: "#475569" }}>
+                  See{" "}
+                  <a href={`${DOCS_BASE}/corail/channels`} target="_blank" rel="noopener noreferrer" style={{ color: "#22d3ee" }}>
+                    full setup guide
+                  </a>
+                  {" "}for slash commands, guild sync, and troubleshooting.
+                </p>
               </div>
             )}
           </div>
