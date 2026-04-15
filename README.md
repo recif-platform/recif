@@ -188,8 +188,9 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 | Prompt registry | 🔴 | Versioned prompt templates synced to MLflow |
 | Cost tracking | 🔴 | Per-agent token usage, budget alerts, cost allocation |
 | Audit trail | 🔴 | Full audit log for compliance (who changed what, when) |
+| Distributed event bus | 🔵 | Agent-to-agent communication, pub/sub, choreography. In-process EventBus exists per pod — the architecture supports distributed eventing, waiting for real market demand before implementing. |
 
-> 🟢 Done  🟠 In progress  🟡 Designed  🔴 Planned
+> 🟢 Done  🟠 In progress  🟡 Designed  🔴 Planned  🔵 Future (architecture ready, market-driven)
 
 ---
 
