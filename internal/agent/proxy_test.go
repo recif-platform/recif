@@ -42,7 +42,7 @@ func TestBuildTargetURL_WithoutTemplate(t *testing.T) {
 func TestBuildTargetURL_DefaultBase(t *testing.T) {
 	h := NewProxyHandler(newTestLogger(), "")
 	got := h.buildTargetURL("my-agent", "/chat/stream")
-	want := "http://my-agent.team-default.svc.cluster.local:8001/chat/stream"
+	want := "http://my-agent.team-default.svc.cluster.local:8000/chat/stream"
 	if got != want {
 		t.Errorf("buildTargetURL = %q, want %q", got, want)
 	}

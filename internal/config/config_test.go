@@ -34,8 +34,8 @@ func TestLoad_Defaults(t *testing.T) {
 		{"MTLSCertPath", cfg.MTLSCertPath, ""},
 		{"MTLSKeyPath", cfg.MTLSKeyPath, ""},
 		{"MTLSCAPath", cfg.MTLSCAPath, ""},
-		{"AgentBaseURL", cfg.AgentBaseURL, "http://%s.team-default.svc.cluster.local:8001"},
-		{"AgentGRPCURL", cfg.AgentGRPCURL, "%s.team-default.svc.cluster.local:9001"},
+		{"AgentBaseURL", cfg.AgentBaseURL, "http://%s.team-default.svc.cluster.local:8000"},
+		{"AgentGRPCURL", cfg.AgentGRPCURL, ""},
 	}
 
 	for _, tc := range checks {
