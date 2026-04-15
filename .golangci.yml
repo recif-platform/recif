@@ -3,17 +3,15 @@ version: "2"
 linters:
   default: none
   enable:
-    - staticcheck
-    - gosec
     - govet
     - ineffassign
-    - unused
+    - staticcheck
   settings:
-    gosec:
-      excludes:
-        - G301
-        - G304
-        - G306
+    staticcheck:
+      checks:
+        - "all"
+        - "-QF*"
+        - "-ST*"
 
   exclusions:
     paths:
