@@ -62,7 +62,7 @@ const STEP_DOCS: Record<string, string> = {
   Prompt: "/guides/create-agent",
   Tools: "/guides/create-agent",
   Skills: "/guides/create-agent",
-  Channel: "/corail/channels",
+  Channel: "/guides/channels",
   Framework: "/quickstart",
   Capabilities: "/guides/governance",
   Delivery: "/quickstart",
@@ -568,7 +568,7 @@ export default function CreateAgentWizard() {
                 </code>
                 <p className="text-xs mt-2" style={{ color: "#475569" }}>
                   See{" "}
-                  <a href={`${DOCS_BASE}/corail/channels`} target="_blank" rel="noopener noreferrer" style={{ color: "#22d3ee" }}>
+                  <a href={`${DOCS_BASE}/guides/channels`} target="_blank" rel="noopener noreferrer" style={{ color: "#22d3ee" }}>
                     full setup guide
                   </a>
                   {" "}for slash commands, guild sync, and troubleshooting.
