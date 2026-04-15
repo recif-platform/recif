@@ -17,12 +17,29 @@ const (
 )
 
 // Auth creates middleware that validates JWT tokens via the given AuthProvider.
-// If authEnabled is false, all requests are allowed with default claims.
+// If authEnabled is false, requests without a token proceed with default dev claims.
+// If a token IS provided, it is always validated regardless of authEnabled.
 func Auth(provider auth.AuthProvider, authEnabled bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			header := r.Header.Get("Authorization")
+			hasToken := header != "" && strings.HasPrefix(header, "Bearer ")
+
+			if hasToken {
+				// Always validate a provided token.
+				token := strings.TrimPrefix(header, "Bearer ")
+				claims, err := provider.Validate(r.Context(), token)
+				if err != nil {
+					httputil.WriteError(w, http.StatusUnauthorized, "Unauthorized", "Invalid or expired token", r.URL.Path)
+					return
+				}
+				ctx := auth.SetClaims(r.Context(), claims)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+
 			if !authEnabled {
-				// Dev mode: inject default claims
+				// Dev mode, no token: inject default dev claims.
 				ctx := auth.SetClaims(r.Context(), &auth.Claims{
 					UserID: defaultUserID,
 					TeamID: defaultTeamID,
@@ -32,21 +49,8 @@ func Auth(provider auth.AuthProvider, authEnabled bool) func(http.Handler) http.
 				return
 			}
 
-			header := r.Header.Get("Authorization")
-			if header == "" || !strings.HasPrefix(header, "Bearer ") {
-				httputil.WriteError(w, http.StatusUnauthorized, "Unauthorized", "Missing or invalid Authorization header", r.URL.Path)
-				return
-			}
-
-			token := strings.TrimPrefix(header, "Bearer ")
-			claims, err := provider.Validate(r.Context(), token)
-			if err != nil {
-				httputil.WriteError(w, http.StatusUnauthorized, "Unauthorized", "Invalid or expired token", r.URL.Path)
-				return
-			}
-
-			ctx := auth.SetClaims(r.Context(), claims)
-			next.ServeHTTP(w, r.WithContext(ctx))
+			// Auth required, no token.
+			httputil.WriteError(w, http.StatusUnauthorized, "Unauthorized", "Missing or invalid Authorization header", r.URL.Path)
 		})
 	}
 }
