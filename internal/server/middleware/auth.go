@@ -9,8 +9,6 @@ import (
 	"github.com/sciences44/recif/internal/httputil"
 )
 
-type claimsContextKey struct{}
-
 const (
 	defaultTeamID    = "tk_DEFAULT000000000000000000"
 	defaultNamespace = "team-default"
@@ -25,7 +23,7 @@ func Auth(provider auth.AuthProvider, authEnabled bool) func(http.Handler) http.
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !authEnabled {
 				// Dev mode: inject default claims
-				ctx := context.WithValue(r.Context(), claimsContextKey{}, &auth.Claims{
+				ctx := auth.SetClaims(r.Context(), &auth.Claims{
 					UserID: defaultUserID,
 					TeamID: defaultTeamID,
 					Role:   defaultRole,
@@ -47,7 +45,7 @@ func Auth(provider auth.AuthProvider, authEnabled bool) func(http.Handler) http.
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), claimsContextKey{}, claims)
+			ctx := auth.SetClaims(r.Context(), claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -55,10 +53,7 @@ func Auth(provider auth.AuthProvider, authEnabled bool) func(http.Handler) http.
 
 // GetClaims extracts auth claims from request context.
 func GetClaims(ctx context.Context) *auth.Claims {
-	if claims, ok := ctx.Value(claimsContextKey{}).(*auth.Claims); ok {
-		return claims
-	}
-	return nil
+	return auth.GetClaims(ctx)
 }
 
 // TeamFromContext extracts the team ID from context.
@@ -91,10 +86,8 @@ func IsPlatformAdmin(ctx context.Context) bool {
 // teamIDToNamespace converts a team ID like "tk_DEFAULT000000000000000000"
 // to a K8s namespace like "team-default".
 func teamIDToNamespace(teamID string) string {
-	// Strip the "tk_" prefix and take the first meaningful segment.
 	name := strings.TrimPrefix(teamID, "tk_")
 	name = strings.ToLower(name)
-	// Use a stable short prefix for the namespace.
 	if name == "" || strings.HasPrefix(name, "default") {
 		return defaultNamespace
 	}

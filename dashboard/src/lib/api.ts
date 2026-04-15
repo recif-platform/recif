@@ -1,4 +1,55 @@
+import { getAuthHeaders, clearToken } from "./auth";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
+/** Wrapper around fetch that automatically injects the JWT and handles 401s. */
+async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: {
+      ...getAuthHeaders(),
+      ...(init.headers as Record<string, string> | undefined),
+    },
+  });
+  if (res.status === 401) {
+    clearToken();
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+  }
+  return res;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Auth API                                                           */
+/* ------------------------------------------------------------------ */
+
+export interface CurrentUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  created_at: string;
+}
+
+export async function login(email: string, password: string): Promise<{ token: string; user: CurrentUser }> {
+  const res = await fetch(`${API_URL}/api/v1/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || err.error || "Invalid email or password");
+  }
+  return res.json();
+}
+
+export async function fetchCurrentUser(): Promise<CurrentUser> {
+  const res = await apiFetch("/api/v1/auth/me");
+  if (!res.ok) throw new Error("Not authenticated");
+  return res.json();
+}
 
 export interface Agent {
   id: string;
@@ -26,35 +77,35 @@ export interface Agent {
 }
 
 export async function fetchAgents(): Promise<Agent[]> {
-  const res = await fetch(`${API_URL}/api/v1/agents`);
+  const res = await apiFetch("/api/v1/agents");
   if (!res.ok) throw new Error(`Failed to fetch agents: ${res.status}`);
   const json = await res.json();
   return json.data || [];
 }
 
 export async function deployAgent(id: string): Promise<Agent> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${id}/deploy`, { method: "POST" });
+  const res = await apiFetch(`/api/v1/agents/${id}/deploy`, { method: "POST" });
   if (!res.ok) throw new Error(`Failed to deploy agent: ${res.status}`);
   const json = await res.json();
   return json.data;
 }
 
 export async function stopAgent(id: string): Promise<Agent> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${id}/stop`, { method: "POST" });
+  const res = await apiFetch(`/api/v1/agents/${id}/stop`, { method: "POST" });
   if (!res.ok) throw new Error(`Failed to stop agent: ${res.status}`);
   const json = await res.json();
   return json.data;
 }
 
 export async function restartAgent(id: string): Promise<Agent> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${id}/restart`, { method: "POST" });
+  const res = await apiFetch(`/api/v1/agents/${id}/restart`, { method: "POST" });
   if (!res.ok) throw new Error(`Failed to restart agent: ${res.status}`);
   const json = await res.json();
   return json.data;
 }
 
 export async function deleteAgent(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${id}`, { method: "DELETE" });
+  const res = await apiFetch(`/api/v1/agents/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`Failed to delete agent: ${res.status}`);
 }
 

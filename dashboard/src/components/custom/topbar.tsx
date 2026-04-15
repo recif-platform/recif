@@ -1,8 +1,11 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { NotificationBell } from "./notification-bell";
 import { useTheme } from "@/lib/theme";
+import { fetchCurrentUser, type CurrentUser } from "@/lib/api";
+import { clearToken } from "@/lib/auth";
 
 /** Map path segments to readable labels */
 const segmentLabels: Record<string, string> = {
@@ -124,8 +127,33 @@ function ThemeToggle() {
   );
 }
 
+function useCurrentUser() {
+  const [user, setUser] = useState<CurrentUser | null>(null);
+
+  useEffect(() => {
+    fetchCurrentUser()
+      .then(setUser)
+      .catch(() => {
+        // If auth is disabled or request fails, leave user as null (show defaults)
+      });
+  }, []);
+
+  return user;
+}
+
+function handleSignOut() {
+  clearToken();
+  window.location.href = "/login";
+}
+
 function UserAvatar() {
   const { colors, theme } = useTheme();
+  const user = useCurrentUser();
+
+  const displayName = user?.name ?? "—";
+  const displayRole = user?.role ?? "admin";
+  const initial = displayName.charAt(0).toUpperCase() || "?";
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <div
@@ -141,14 +169,17 @@ function UserAvatar() {
           fontWeight: 700,
           color: "#fff",
           flexShrink: 0,
+          cursor: "pointer",
         }}
+        title="Sign out"
+        onClick={handleSignOut}
       >
-        A
+        {initial}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: colors.textPrimary }}>
-            Adham
+            {displayName}
           </span>
           <span
             style={{
@@ -165,10 +196,12 @@ function UserAvatar() {
               letterSpacing: "0.5px",
             }}
           >
-            Admin
+            {displayRole}
           </span>
         </div>
-        <span style={{ fontSize: 12, color: colors.textMuted }}>Team: Default</span>
+        {user?.email && (
+          <span style={{ fontSize: 12, color: colors.textMuted }}>{user.email}</span>
+        )}
       </div>
     </div>
   );

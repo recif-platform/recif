@@ -11,6 +11,7 @@ import (
 	"github.com/sciences44/recif/internal/agent"
 	"github.com/sciences44/recif/internal/auth"
 	"github.com/sciences44/recif/internal/config"
+	db "github.com/sciences44/recif/internal/db/generated"
 	"github.com/sciences44/recif/internal/eval"
 	"github.com/sciences44/recif/internal/eventbus"
 	"github.com/sciences44/recif/internal/feedback"
@@ -23,7 +24,9 @@ import (
 	"github.com/sciences44/recif/internal/release"
 	"github.com/sciences44/recif/internal/scaffold"
 	"github.com/sciences44/recif/internal/skill"
+	"github.com/sciences44/recif/internal/server/middleware"
 	"github.com/sciences44/recif/internal/team"
+	"github.com/sciences44/recif/internal/user"
 )
 
 // Server is the HTTP server for the Recif API.
@@ -49,6 +52,8 @@ type Server struct {
 	platformHandler    *platform.Handler
 	syncHandler        *platform.SyncHandler
 	authProvider       auth.AuthProvider
+	authHandler        *auth.Handler
+	userHandler        *user.Handler
 }
 
 // New creates a new Server with the given configuration and dependencies.
@@ -94,6 +99,15 @@ func New(cfg config.Config, logger *slog.Logger, agentRepo agent.Repository, kbS
 	if len(pool) > 0 {
 		dbPool = pool[0]
 	}
+
+	// Auth and user handlers (require database)
+	var authH *auth.Handler
+	var userH *user.Handler
+	if dbPool != nil {
+		userRepo := user.NewRepository(db.New(dbPool))
+		authH = auth.NewHandler(userRepo, jwtProvider, logger)
+		userH = user.NewHandler(userRepo, logger, middleware.IsPlatformAdmin)
+	}
 	platformHandler := platform.NewHandler(dbPool, cfg, logger)
 
 	// Sync git client with DB-loaded config (token may be in DB but not in env)
@@ -134,6 +148,8 @@ func New(cfg config.Config, logger *slog.Logger, agentRepo agent.Repository, kbS
 		platformHandler:    platformHandler,
 		syncHandler:        platform.NewSyncHandler(platformHandler, agentRepo, logger),
 		authProvider:       jwtProvider,
+		authHandler:        authH,
+		userHandler:        userH,
 	}
 
 	router := s.routes()

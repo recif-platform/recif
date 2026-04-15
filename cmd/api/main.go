@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -9,12 +10,15 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/oklog/ulid/v2"
 	"github.com/sciences44/recif/internal/agent"
 	"github.com/sciences44/recif/internal/config"
 	"github.com/sciences44/recif/internal/db"
+	dbgen "github.com/sciences44/recif/internal/db/generated"
 	"github.com/sciences44/recif/internal/kb"
 	"github.com/sciences44/recif/internal/observability"
 	"github.com/sciences44/recif/internal/server"
+	"github.com/sciences44/recif/internal/user"
 )
 
 func main() {
@@ -79,6 +83,11 @@ func main() {
 		}
 	}
 
+	// Bootstrap admin user on first startup (only when DB is available and creds are configured).
+	if pool != nil && cfg.AdminEmail != "" && cfg.AdminPassword != "" {
+		bootstrapAdmin(ctx, pool, cfg, logger)
+	}
+
 	srv := server.New(cfg, logger, agentRepo, kbStore, pool)
 
 	go func() {
@@ -97,4 +106,24 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Error("shutdown error", "error", err)
 	}
+}
+
+// bootstrapAdmin creates the first admin user if no users exist yet.
+func bootstrapAdmin(ctx context.Context, pool *pgxpool.Pool, cfg config.Config, logger *slog.Logger) {
+	repo := user.NewRepository(dbgen.New(pool))
+	count, err := repo.Count(ctx)
+	if err != nil {
+		logger.Warn("could not check user count for bootstrap", "error", err)
+		return
+	}
+	if count > 0 {
+		return
+	}
+
+	id := fmt.Sprintf("us_%s", ulid.Make().String())
+	if _, err := repo.Create(ctx, id, cfg.AdminEmail, cfg.AdminName, "admin", cfg.AdminPassword); err != nil {
+		logger.Error("failed to bootstrap admin user", "error", err)
+		return
+	}
+	logger.Info("admin user bootstrapped", "email", cfg.AdminEmail)
 }

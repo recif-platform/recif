@@ -25,6 +25,9 @@ type Config struct {
 	StateBranch    string // Branch in the state repo (default: main)
 	StateToken     string // GitHub token for commits to the state repo
 	MLflowURI      string // MLflow tracking server URI for prompt registry and tracing
+	AdminEmail     string // Bootstrap admin user email (used on first startup when no users exist)
+	AdminPassword  string // Bootstrap admin user password
+	AdminName      string // Bootstrap admin user display name
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -48,6 +51,9 @@ func Load() Config {
 		StateBranch:    getEnv("RECIF_STATE_BRANCH", "main"),
 		StateToken:     os.Getenv("RECIF_STATE_TOKEN"),
 		MLflowURI:      getEnv("MLFLOW_TRACKING_URI", "http://mlflow.mlflow-system.svc.cluster.local:5000"),
+		AdminEmail:     os.Getenv("ADMIN_EMAIL"),
+		AdminPassword:  os.Getenv("ADMIN_PASSWORD"),
+		AdminName:      getEnv("ADMIN_NAME", "Admin"),
 	}
 }
 

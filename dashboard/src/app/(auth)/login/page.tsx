@@ -1,24 +1,34 @@
 "use client";
 
 import { useState } from "react";
+import { login } from "@/lib/api";
+import { setToken } from "@/lib/auth";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // TODO: Implement actual auth when backend login endpoint is ready
     if (!email || !password) {
       setError("Email and password are required");
       return;
     }
 
-    // Placeholder: redirect to dashboard
-    window.location.href = "/agents";
+    setLoading(true);
+    try {
+      const { token } = await login(email, password);
+      setToken(token);
+      window.location.href = "/agents";
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -49,6 +59,8 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-xl border border-white/20 bg-white/40 dark:bg-zinc-800/40 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
               placeholder="you@example.com"
+              autoComplete="email"
+              disabled={loading}
             />
           </div>
 
@@ -63,15 +75,18 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-xl border border-white/20 bg-white/40 dark:bg-zinc-800/40 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
               placeholder="••••••••"
+              autoComplete="current-password"
+              disabled={loading}
             />
           </div>
 
           <button
             type="submit"
-            className="w-full rounded-xl py-2 text-sm font-medium text-white transition-colors"
+            disabled={loading}
+            className="w-full rounded-xl py-2 text-sm font-medium text-white transition-opacity disabled:opacity-60"
             style={{ backgroundColor: "var(--neon-cyan)" }}
           >
-            Sign in
+            {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
       </div>

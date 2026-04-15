@@ -18,3 +18,16 @@ type AuthProvider interface {
 	// Name returns the provider name (e.g., "local-jwt", "oidc").
 	Name() string
 }
+
+type claimsContextKey struct{}
+
+// SetClaims stores Claims in a context. Called by the auth middleware.
+func SetClaims(ctx context.Context, c *Claims) context.Context {
+	return context.WithValue(ctx, claimsContextKey{}, c)
+}
+
+// GetClaims retrieves Claims from a context. Returns nil if not set.
+func GetClaims(ctx context.Context) *Claims {
+	c, _ := ctx.Value(claimsContextKey{}).(*Claims)
+	return c
+}

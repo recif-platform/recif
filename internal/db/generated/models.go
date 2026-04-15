@@ -8,10 +8,122 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Agent struct {
+	ID            string             `json:"id"`
+	TeamID        string             `json:"team_id"`
+	Name          string             `json:"name"`
+	Slug          string             `json:"slug"`
+	Description   pgtype.Text        `json:"description"`
+	Status        string             `json:"status"`
+	Framework     string             `json:"framework"`
+	Config        []byte             `json:"config"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	Version       string             `json:"version"`
+	RiskProfileID pgtype.Text        `json:"risk_profile_id"`
+}
+
+type AgentVersion struct {
+	ID        string             `json:"id"`
+	AgentID   string             `json:"agent_id"`
+	Version   string             `json:"version"`
+	Config    []byte             `json:"config"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type ApiKey struct {
+	ID        string             `json:"id"`
+	TeamID    string             `json:"team_id"`
+	Name      string             `json:"name"`
+	KeyHash   string             `json:"key_hash"`
+	KeyPrefix string             `json:"key_prefix"`
+	Scopes    []string           `json:"scopes"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	Revoked   bool               `json:"revoked"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type AuditEvent struct {
+	ID           string             `json:"id"`
+	ActorID      string             `json:"actor_id"`
+	Action       string             `json:"action"`
+	ResourceType string             `json:"resource_type"`
+	ResourceID   pgtype.Text        `json:"resource_id"`
+	Outcome      string             `json:"outcome"`
+	Metadata     []byte             `json:"metadata"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
+type DatasetScenario struct {
+	ID             string             `json:"id"`
+	DatasetID      string             `json:"dataset_id"`
+	Input          string             `json:"input"`
+	ExpectedOutput pgtype.Text        `json:"expected_output"`
+	ExpectedTools  []byte             `json:"expected_tools"`
+	Conversation   []byte             `json:"conversation"`
+	SortOrder      int32              `json:"sort_order"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type EvalRun struct {
+	ID              string             `json:"id"`
+	AgentID         string             `json:"agent_id"`
+	DatasetID       string             `json:"dataset_id"`
+	TeamID          string             `json:"team_id"`
+	AgentVersion    string             `json:"agent_version"`
+	Status          string             `json:"status"`
+	OverallScore    pgtype.Numeric     `json:"overall_score"`
+	ScenarioResults []byte             `json:"scenario_results"`
+	StartedAt       pgtype.Timestamptz `json:"started_at"`
+	CompletedAt     pgtype.Timestamptz `json:"completed_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+type GoldenDataset struct {
+	ID        string             `json:"id"`
+	AgentID   string             `json:"agent_id"`
+	TeamID    string             `json:"team_id"`
+	Name      string             `json:"name"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type PlatformConfig struct {
+	Key       string             `json:"key"`
+	Value     string             `json:"value"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type RiskProfile struct {
+	ID          string             `json:"id"`
+	Name        string             `json:"name"`
+	MinScore    pgtype.Numeric     `json:"min_score"`
+	Description pgtype.Text        `json:"description"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type Team struct {
 	ID        string             `json:"id"`
 	Name      string             `json:"name"`
 	Slug      string             `json:"slug"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type TeamMembership struct {
+	ID        string             `json:"id"`
+	UserID    string             `json:"user_id"`
+	TeamID    string             `json:"team_id"`
+	Role      string             `json:"role"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type User struct {
+	ID           string             `json:"id"`
+	Email        string             `json:"email"`
+	Name         string             `json:"name"`
+	Role         string             `json:"role"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	PasswordHash string             `json:"password_hash"`
 }
