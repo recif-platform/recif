@@ -564,7 +564,7 @@ export default function CreateAgentWizard() {
                   , then store the token as a K8s Secret:
                 </p>
                 <code className="block text-xs mt-2" style={{ color: "#22d3ee", fontFamily: "monospace", lineHeight: 1.6 }}>
-                  kubectl create secret generic discord-bot -n team-default --from-literal=DISCORD_BOT_TOKEN=your-token
+                  kubectl create secret generic discord-bot -n team-default --from-literal=DISCORD_BOT_TOKEN=your-token --dry-run=client -o yaml | kubectl apply -f -
                 </code>
                 <p className="text-xs mt-2" style={{ color: "#475569" }}>
                   See{" "}
