@@ -19,7 +19,7 @@ const CUSTOM_STEPS = ["Type", "Name", "Framework", "Capabilities", "Channel", "D
 
 const CHANNELS = [
   { id: "rest", name: "REST API", description: "HTTP API + SSE streaming. Used by the Récif dashboard and any REST client." },
-  { id: "discord", name: "Discord", description: "Discord bot with slash commands (/chat, /clear, /status). Requires a DISCORD_TOKEN secret." },
+  { id: "discord", name: "Discord", description: "Discord bot with slash commands (/chat, /clear, /status). Requires a DISCORD_BOT_TOKEN secret." },
 ];
 
 const BUILTIN_TOOLS = [
@@ -241,6 +241,7 @@ export default function CreateAgentWizard() {
           channel,
           tools,
           skills,
+          env_secrets: channel === "discord" ? ["agent-env", "discord-bot"] : ["agent-env"],
         }),
       });
       const data = await res.json();

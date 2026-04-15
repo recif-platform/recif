@@ -16,6 +16,7 @@ var DBToCRDKeyMap = map[string]string{
 	"tools":                "tools",
 	"skills":               "skills",
 	"knowledge_bases":      "knowledgeBases",
+	"env_secrets":          "envSecrets",
 	"suggestions_provider": "suggestionsProvider",
 	"suggestions":          "suggestions",
 	"eval_sample_rate":     "evalSampleRate",
@@ -109,6 +110,9 @@ func MergeAllFieldsIntoConfig(req CreateAgentRequest) json.RawMessage {
 	}
 	if len(req.Skills) > 0 {
 		cfg["skills"] = req.Skills
+	}
+	if len(req.EnvSecrets) > 0 {
+		cfg["env_secrets"] = req.EnvSecrets
 	}
 	setIfNotEmpty("gcp_service_account", req.GCPServiceAccount)
 	setIfNotEmpty("suggestions_provider", req.SuggestionsProvider)

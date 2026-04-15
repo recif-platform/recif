@@ -32,6 +32,7 @@ type CreateAgentRequest struct {
 	Image        string          `json:"image"`
 	Tools               []string        `json:"tools"`
 	Skills              []string        `json:"skills"`
+	EnvSecrets          []string        `json:"env_secrets"`
 	SuggestionsProvider string          `json:"suggestions_provider"`
 	Suggestions         string          `json:"suggestions"`
 	GCPServiceAccount   string          `json:"gcp_service_account"`
