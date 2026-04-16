@@ -128,7 +128,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract creator from JWT claims.
 	createdBy := ""
 	if claims := auth.GetClaims(r.Context()); claims != nil {
 		createdBy = claims.UserID
