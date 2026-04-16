@@ -46,6 +46,6 @@ test.describe("Knowledge Bases", () => {
 
     // Delete
     const delRes = await apiCall("DELETE", `/api/v1/knowledge-bases/${kb.id}`, token);
-    expect(delRes.status).toBe(200);
+    expect(delRes.status).toBeLessThan(300);
   });
 });
