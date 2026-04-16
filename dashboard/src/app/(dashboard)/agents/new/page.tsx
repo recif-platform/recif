@@ -248,6 +248,7 @@ export default function CreateAgentWizard() {
           version: "0.1.0",
           model_type: provider,
           model_id: modelId,
+          system_prompt: systemPrompt,
           channel,
           tools,
           skills,
