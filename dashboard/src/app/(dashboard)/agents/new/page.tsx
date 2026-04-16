@@ -23,6 +23,15 @@ const CHANNELS = [
   { id: "discord", name: "Discord", description: "Discord bot with slash commands (/chat, /clear, /status). Requires a DISCORD_BOT_TOKEN secret." },
 ];
 
+const COMING_SOON_CHANNELS = [
+  { id: "slack", name: "Slack", description: "Slack bot with app mentions and thread replies." },
+  { id: "teams", name: "Microsoft Teams", description: "Teams bot with adaptive cards and message extensions." },
+  { id: "telegram", name: "Telegram", description: "Telegram bot with inline queries and rich media." },
+  { id: "whatsapp", name: "WhatsApp", description: "WhatsApp Business API integration via Meta Cloud." },
+  { id: "email", name: "Email", description: "IMAP/SMTP agent that reads and replies to emails." },
+  { id: "voice", name: "Voice (Twilio)", description: "Phone call agent with speech-to-text and text-to-speech." },
+];
+
 const BUILTIN_TOOLS = [
   { id: "web_search", name: "Web Search", description: "Search the web via DuckDuckGo" },
   { id: "fetch_url", name: "Fetch URL", description: "Fetch and extract content from a web page" },
@@ -576,6 +585,54 @@ export default function CreateAgentWizard() {
                 </p>
               </div>
             )}
+
+            {/* Coming soon channels */}
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+              <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "#475569", marginBottom: 10 }}>
+                Coming Soon
+              </p>
+              <div className="space-y-2">
+                {COMING_SOON_CHANNELS.map((ch) => (
+                  <div
+                    key={ch.id}
+                    className="block w-full text-left rounded-xl"
+                    style={{
+                      padding: "12px 16px",
+                      background: "rgba(15, 23, 42, 0.3)",
+                      border: "1px solid rgba(255,255,255,0.04)",
+                      opacity: 0.5,
+                      cursor: "default",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontWeight: 600, fontSize: "14px", color: "#475569" }}>{ch.name}</span>
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4,
+                        background: "rgba(239, 68, 68, 0.15)", color: "#f87171",
+                        textTransform: "uppercase", letterSpacing: "0.05em",
+                      }}>
+                        Soon
+                      </span>
+                    </div>
+                    <span className="block text-xs mt-1" style={{ color: "#334155", fontWeight: 400 }}>
+                      {ch.description}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: "#334155", marginTop: 10 }}>
+                Want a channel prioritized?{" "}
+                <a
+                  href="https://github.com/recif-platform/corail/issues/new?title=Channel+request:+&labels=enhancement,channel"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#22d3ee" }}
+                >
+                  Create an issue
+                </a>
+                {" "}to help us prioritize.
+              </p>
+            </div>
           </div>
         );
 
