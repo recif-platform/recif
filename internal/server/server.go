@@ -99,15 +99,18 @@ func New(cfg config.Config, logger *slog.Logger, agentRepo agent.Repository, kbS
 		dbPool = pool[0]
 	}
 
-	// Auth and user handlers (require database)
+	// Auth, user, team handlers (require database)
 	var authH *auth.Handler
 	var userH *user.Handler
+	var teamH *team.Handler
 	if dbPool != nil {
-		userRepo := user.NewRepository(db.New(dbPool))
+		q := db.New(dbPool)
+		userRepo := user.NewRepository(q)
 		authH = auth.NewHandler(userRepo, jwtProvider, logger)
 		userH = user.NewHandler(userRepo, logger, func(ctx context.Context) bool {
 			return auth.IsAdmin(auth.GetClaims(ctx))
 		})
+		teamH = team.NewHandler(team.NewPostgresRepository(q), logger)
 	}
 	platformHandler := platform.NewHandler(dbPool, cfg, logger)
 
@@ -145,7 +148,7 @@ func New(cfg config.Config, logger *slog.Logger, agentRepo agent.Repository, kbS
 		releaseHandler:     releaseHandler,
 		scaffoldHandler:    scaffold.NewHandler(logger),
 		skillHandler:       skill.NewHandler(logger),
-		teamHandler:        team.NewHandler(logger),
+		teamHandler:        teamH,
 		platformHandler:    platformHandler,
 		syncHandler:        platform.NewSyncHandler(platformHandler, agentRepo, logger),
 		authProvider:       jwtProvider,

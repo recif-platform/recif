@@ -158,13 +158,15 @@ func (s *Server) routes() http.Handler {
 			r.Post("/scaffold", s.scaffoldHandler.Generate)
 
 			// Teams
-			r.Get("/teams", s.teamHandler.List)
-			r.Post("/teams", s.teamHandler.Create)
-			r.Get("/teams/{teamId}", s.teamHandler.Get)
-			r.Delete("/teams/{teamId}", s.teamHandler.Delete)
-			r.Post("/teams/{teamId}/members", s.teamHandler.AddMember)
-			r.Delete("/teams/{teamId}/members/{userId}", s.teamHandler.RemoveMember)
-			r.Patch("/teams/{teamId}/members/{userId}", s.teamHandler.UpdateMemberRole)
+			if s.teamHandler != nil {
+				r.Get("/teams", s.teamHandler.List)
+				r.Post("/teams", s.teamHandler.Create)
+				r.Get("/teams/{teamId}", s.teamHandler.Get)
+				r.Delete("/teams/{teamId}", s.teamHandler.Delete)
+				r.Post("/teams/{teamId}/members", s.teamHandler.AddMember)
+				r.Delete("/teams/{teamId}/members/{userId}", s.teamHandler.RemoveMember)
+				r.Patch("/teams/{teamId}/members/{userId}", s.teamHandler.UpdateMemberRole)
+			}
 
 			// Platform config
 			r.Get("/platform/config", s.platformHandler.Get)

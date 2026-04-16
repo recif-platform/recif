@@ -10,8 +10,11 @@ import (
 	db "github.com/sciences44/recif/internal/db/generated"
 )
 
-// ErrNotFound is returned when a team is not found.
-var ErrNotFound = errors.New("team not found")
+var (
+	ErrNotFound       = errors.New("team not found")
+	ErrMemberNotFound = errors.New("member not found")
+	ErrUserNotFound   = errors.New("user not found")
+)
 
 // PostgresRepository implements Repository using sqlc-generated queries.
 type PostgresRepository struct {
@@ -31,29 +34,122 @@ func (r *PostgresRepository) Get(ctx context.Context, id string) (*Team, error) 
 		}
 		return nil, fmt.Errorf("get team %s: %w", id, err)
 	}
-	return &Team{
-		ID:        row.ID,
-		Name:      row.Name,
-		Slug:      row.Slug,
-		Namespace: "team-" + row.Slug,
-		CreatedAt: row.CreatedAt.Time,
-	}, nil
+	count, _ := r.q.CountTeamMembers(ctx, id)
+	return rowToTeam(row, int(count)), nil
 }
 
-func (r *PostgresRepository) Create(ctx context.Context, id, name, slug string) (*Team, error) {
+func (r *PostgresRepository) Create(ctx context.Context, id, name, slug, description string) (*Team, error) {
 	row, err := r.q.CreateTeam(ctx, db.CreateTeamParams{
-		ID:   id,
-		Name: name,
-		Slug: slug,
+		ID:          id,
+		Name:        name,
+		Slug:        slug,
+		Description: description,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create team: %w", err)
 	}
+	return rowToTeam(row, 0), nil
+}
+
+func (r *PostgresRepository) List(ctx context.Context) ([]*Team, error) {
+	rows, err := r.q.ListTeams(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list teams: %w", err)
+	}
+	teams := make([]*Team, len(rows))
+	for i, row := range rows {
+		count, _ := r.q.CountTeamMembers(ctx, row.ID)
+		teams[i] = rowToTeam(row, int(count))
+	}
+	return teams, nil
+}
+
+func (r *PostgresRepository) Delete(ctx context.Context, id string) error {
+	_, err := r.q.GetTeam(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("delete team %s: %w", id, err)
+	}
+	return r.q.DeleteTeam(ctx, id)
+}
+
+func (r *PostgresRepository) ListMembers(ctx context.Context, teamID string) ([]TeamMember, error) {
+	rows, err := r.q.ListTeamMembers(ctx, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("list members: %w", err)
+	}
+	members := make([]TeamMember, len(rows))
+	for i, row := range rows {
+		members[i] = TeamMember{
+			UserID:   row.UserID,
+			Email:    row.Email,
+			Role:     row.Role,
+			JoinedAt: row.CreatedAt.Time,
+		}
+	}
+	return members, nil
+}
+
+func (r *PostgresRepository) AddMember(ctx context.Context, membershipID, userID, teamID, role string) error {
+	_, err := r.q.AddTeamMember(ctx, db.AddTeamMemberParams{
+		ID:     membershipID,
+		UserID: userID,
+		TeamID: teamID,
+		Role:   role,
+	})
+	return err
+}
+
+func (r *PostgresRepository) RemoveMember(ctx context.Context, teamID, userID string) error {
+	return r.q.RemoveTeamMember(ctx, db.RemoveTeamMemberParams{
+		TeamID: teamID,
+		UserID: userID,
+	})
+}
+
+func (r *PostgresRepository) UpdateMemberRole(ctx context.Context, teamID, userID, role string) error {
+	return r.q.UpdateTeamMemberRole(ctx, db.UpdateTeamMemberRoleParams{
+		Role:   role,
+		TeamID: teamID,
+		UserID: userID,
+	})
+}
+
+func (r *PostgresRepository) GetMemberRole(ctx context.Context, teamID, userID string) (string, error) {
+	role, err := r.q.GetTeamMemberRole(ctx, db.GetTeamMemberRoleParams{
+		TeamID: teamID,
+		UserID: userID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrMemberNotFound
+		}
+		return "", fmt.Errorf("get member role: %w", err)
+	}
+	return role, nil
+}
+
+func (r *PostgresRepository) GetUserIDByEmail(ctx context.Context, email string) (string, error) {
+	id, err := r.q.GetUserIDByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrUserNotFound
+		}
+		return "", fmt.Errorf("get user by email: %w", err)
+	}
+	return id, nil
+}
+
+func rowToTeam(row db.Team, memberCount int) *Team {
 	return &Team{
-		ID:        row.ID,
-		Name:      row.Name,
-		Slug:      row.Slug,
-		Namespace: "team-" + row.Slug,
-		CreatedAt: row.CreatedAt.Time,
-	}, nil
+		ID:          row.ID,
+		Name:        row.Name,
+		Slug:        row.Slug,
+		Description: row.Description,
+		Namespace:   "team-" + row.Slug,
+		MemberCount: memberCount,
+		CreatedAt:   row.CreatedAt.Time,
+	}
 }

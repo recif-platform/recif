@@ -7,22 +7,72 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addTeamMember = `-- name: AddTeamMember :one
+INSERT INTO team_memberships (id, user_id, team_id, role)
+VALUES ($1, $2, $3, $4)
+RETURNING id, user_id, team_id, role, created_at
+`
+
+type AddTeamMemberParams struct {
+	ID     string `json:"id"`
+	UserID string `json:"user_id"`
+	TeamID string `json:"team_id"`
+	Role   string `json:"role"`
+}
+
+func (q *Queries) AddTeamMember(ctx context.Context, arg AddTeamMemberParams) (TeamMembership, error) {
+	row := q.db.QueryRow(ctx, addTeamMember,
+		arg.ID,
+		arg.UserID,
+		arg.TeamID,
+		arg.Role,
+	)
+	var i TeamMembership
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TeamID,
+		&i.Role,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const countTeamMembers = `-- name: CountTeamMembers :one
+SELECT COUNT(*) FROM team_memberships WHERE team_id = $1
+`
+
+func (q *Queries) CountTeamMembers(ctx context.Context, teamID string) (int64, error) {
+	row := q.db.QueryRow(ctx, countTeamMembers, teamID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createTeam = `-- name: CreateTeam :one
-INSERT INTO teams (id, name, slug)
-VALUES ($1, $2, $3)
-RETURNING id, name, slug, created_at, updated_at
+INSERT INTO teams (id, name, slug, description)
+VALUES ($1, $2, $3, $4)
+RETURNING id, name, slug, created_at, updated_at, description
 `
 
 type CreateTeamParams struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Slug string `json:"slug"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	Description string `json:"description"`
 }
 
 func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (Team, error) {
-	row := q.db.QueryRow(ctx, createTeam, arg.ID, arg.Name, arg.Slug)
+	row := q.db.QueryRow(ctx, createTeam,
+		arg.ID,
+		arg.Name,
+		arg.Slug,
+		arg.Description,
+	)
 	var i Team
 	err := row.Scan(
 		&i.ID,
@@ -30,12 +80,22 @@ func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (Team, e
 		&i.Slug,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Description,
 	)
 	return i, err
 }
 
+const deleteTeam = `-- name: DeleteTeam :exec
+DELETE FROM teams WHERE id = $1
+`
+
+func (q *Queries) DeleteTeam(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteTeam, id)
+	return err
+}
+
 const getTeam = `-- name: GetTeam :one
-SELECT id, name, slug, created_at, updated_at FROM teams WHERE id = $1
+SELECT id, name, slug, created_at, updated_at, description FROM teams WHERE id = $1
 `
 
 func (q *Queries) GetTeam(ctx context.Context, id string) (Team, error) {
@@ -47,6 +107,136 @@ func (q *Queries) GetTeam(ctx context.Context, id string) (Team, error) {
 		&i.Slug,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Description,
 	)
 	return i, err
+}
+
+const getTeamMemberRole = `-- name: GetTeamMemberRole :one
+SELECT role FROM team_memberships WHERE team_id = $1 AND user_id = $2
+`
+
+type GetTeamMemberRoleParams struct {
+	TeamID string `json:"team_id"`
+	UserID string `json:"user_id"`
+}
+
+func (q *Queries) GetTeamMemberRole(ctx context.Context, arg GetTeamMemberRoleParams) (string, error) {
+	row := q.db.QueryRow(ctx, getTeamMemberRole, arg.TeamID, arg.UserID)
+	var role string
+	err := row.Scan(&role)
+	return role, err
+}
+
+const getUserIDByEmail = `-- name: GetUserIDByEmail :one
+SELECT id FROM users WHERE email = $1
+`
+
+func (q *Queries) GetUserIDByEmail(ctx context.Context, email string) (string, error) {
+	row := q.db.QueryRow(ctx, getUserIDByEmail, email)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
+const listTeamMembers = `-- name: ListTeamMembers :many
+SELECT tm.id, tm.user_id, u.email, tm.role, tm.created_at
+FROM team_memberships tm
+JOIN users u ON u.id = tm.user_id
+WHERE tm.team_id = $1
+ORDER BY tm.created_at ASC
+`
+
+type ListTeamMembersRow struct {
+	ID        string             `json:"id"`
+	UserID    string             `json:"user_id"`
+	Email     string             `json:"email"`
+	Role      string             `json:"role"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ListTeamMembers(ctx context.Context, teamID string) ([]ListTeamMembersRow, error) {
+	rows, err := q.db.Query(ctx, listTeamMembers, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTeamMembersRow{}
+	for rows.Next() {
+		var i ListTeamMembersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Email,
+			&i.Role,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTeams = `-- name: ListTeams :many
+SELECT id, name, slug, created_at, updated_at, description FROM teams ORDER BY created_at ASC
+`
+
+func (q *Queries) ListTeams(ctx context.Context) ([]Team, error) {
+	rows, err := q.db.Query(ctx, listTeams)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Team{}
+	for rows.Next() {
+		var i Team
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Slug,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Description,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const removeTeamMember = `-- name: RemoveTeamMember :exec
+DELETE FROM team_memberships WHERE team_id = $1 AND user_id = $2
+`
+
+type RemoveTeamMemberParams struct {
+	TeamID string `json:"team_id"`
+	UserID string `json:"user_id"`
+}
+
+func (q *Queries) RemoveTeamMember(ctx context.Context, arg RemoveTeamMemberParams) error {
+	_, err := q.db.Exec(ctx, removeTeamMember, arg.TeamID, arg.UserID)
+	return err
+}
+
+const updateTeamMemberRole = `-- name: UpdateTeamMemberRole :exec
+UPDATE team_memberships SET role = $1 WHERE team_id = $2 AND user_id = $3
+`
+
+type UpdateTeamMemberRoleParams struct {
+	Role   string `json:"role"`
+	TeamID string `json:"team_id"`
+	UserID string `json:"user_id"`
+}
+
+func (q *Queries) UpdateTeamMemberRole(ctx context.Context, arg UpdateTeamMemberRoleParams) error {
+	_, err := q.db.Exec(ctx, updateTeamMemberRole, arg.Role, arg.TeamID, arg.UserID)
+	return err
 }

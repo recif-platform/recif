@@ -1,13 +1,13 @@
 package team
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/oklog/ulid/v2"
@@ -17,74 +17,44 @@ import (
 	"github.com/sciences44/recif/internal/server/middleware"
 )
 
-const defaultNamespace = "team-default"
-
 // validRoles is the set of allowed member roles.
 var validRoles = map[string]bool{
-	"admin":     true,
-	"developer": true,
-	"viewer":    true,
+	auth.RoleAdmin:     true,
+	auth.RoleDeveloper: true,
+	auth.RoleViewer:    true,
 }
 
 // Handler provides HTTP handlers for team operations.
 type Handler struct {
-	mu      sync.RWMutex
-	teams   map[string]Team
-	members map[string][]TeamMember // teamID -> members
-	logger  *slog.Logger
+	repo   Repository
+	logger *slog.Logger
 }
 
-// NewHandler creates a new team Handler with a pre-seeded default team.
-func NewHandler(logger *slog.Logger) *Handler {
-	h := &Handler{
-		teams:   make(map[string]Team),
-		members: make(map[string][]TeamMember),
-		logger:  logger,
-	}
-	h.seed()
-	return h
-}
-
-// seed pre-populates the in-memory store with the default team.
-func (h *Handler) seed() {
-	now := time.Now().UTC()
-
-	defaultTeam := Team{
-		ID:          auth.DefaultTeamID,
-		Name:        "Default",
-		Slug:        "default",
-		Description: "Default platform team",
-		Namespace:   defaultNamespace,
-		MemberCount: 1,
-		AgentCount:  0,
-		CreatedAt:   now,
-	}
-
-	h.teams[auth.DefaultTeamID] = defaultTeam
-	h.members[auth.DefaultTeamID] = []TeamMember{
-		{
-			UserID:   "us_DEV00000000000000000000",
-			Email:    "adham@recif.dev",
-			Role:     "platform_admin",
-			JoinedAt: now,
-		},
-	}
+// NewHandler creates a new team Handler backed by a Repository.
+func NewHandler(repo Repository, logger *slog.Logger) *Handler {
+	return &Handler{repo: repo, logger: logger}
 }
 
 // List handles GET /api/v1/teams.
 // Platform admins see all teams; others see only their own team.
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
+	teams, err := h.repo.List(r.Context())
+	if err != nil {
+		h.logger.Error("list teams failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to list teams", r.URL.Path)
+		return
+	}
 
-	teamID := middleware.TeamFromContext(r.Context())
-	isPlatformAdmin := middleware.IsPlatformAdmin(r.Context())
-
-	teams := make([]Team, 0, len(h.teams))
-	for _, t := range h.teams {
-		if isPlatformAdmin || t.ID == teamID {
-			teams = append(teams, t)
+	// Non-admins see only their own team.
+	if !auth.IsAdmin(auth.GetClaims(r.Context())) {
+		teamID := middleware.TeamFromContext(r.Context())
+		filtered := make([]*Team, 0, 1)
+		for _, t := range teams {
+			if t.ID == teamID {
+				filtered = append(filtered, t)
+			}
 		}
+		teams = filtered
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"data": teams})
@@ -93,8 +63,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 // Create handles POST /api/v1/teams.
 // Only platform_admin can create teams.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	if !middleware.IsPlatformAdmin(r.Context()) {
-		httputil.WriteError(w, http.StatusForbidden, "Forbidden", "Only platform admins can create teams", r.URL.Path)
+	if !auth.IsAdmin(auth.GetClaims(r.Context())) {
+		httputil.WriteError(w, http.StatusForbidden, "Forbidden", "Only admins can create teams", r.URL.Path)
 		return
 	}
 
@@ -110,46 +80,41 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slug := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
-	now := time.Now().UTC()
 	id := fmt.Sprintf("tk_%s", ulid.Make().String())
+	slug := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
 
-	team := Team{
-		ID:          id,
-		Name:        name,
-		Slug:        slug,
-		Description: strings.TrimSpace(req.Description),
-		Namespace:   "team-" + slug,
-		MemberCount: 0,
-		AgentCount:  0,
-		CreatedAt:   now,
+	team, err := h.repo.Create(r.Context(), id, name, slug, strings.TrimSpace(req.Description))
+	if err != nil {
+		h.logger.Error("create team failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to create team", r.URL.Path)
+		return
 	}
 
-	h.mu.Lock()
-	h.teams[id] = team
-	h.members[id] = []TeamMember{}
-	h.mu.Unlock()
-
 	h.logger.Info("team created", "id", id, "name", name)
-
 	httputil.WriteJSON(w, http.StatusCreated, map[string]any{"data": team})
 }
 
 // Get handles GET /api/v1/teams/{teamId}.
-// Returns team details + members.
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	teamID := chi.URLParam(r, "teamId")
 
-	h.mu.RLock()
-	team, ok := h.teams[teamID]
-	if !ok {
-		h.mu.RUnlock()
-		httputil.WriteError(w, http.StatusNotFound, "Not Found", "Team not found", r.URL.Path)
+	team, err := h.repo.Get(r.Context(), teamID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			httputil.WriteError(w, http.StatusNotFound, "Not Found", "Team not found", r.URL.Path)
+			return
+		}
+		h.logger.Error("get team failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to get team", r.URL.Path)
 		return
 	}
-	members := make([]TeamMember, len(h.members[teamID]))
-	copy(members, h.members[teamID])
-	h.mu.RUnlock()
+
+	members, err := h.repo.ListMembers(r.Context(), teamID)
+	if err != nil {
+		h.logger.Error("list members failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to list members", r.URL.Path)
+		return
+	}
 
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{
 		"team":    team,
@@ -160,35 +125,36 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 // Delete handles DELETE /api/v1/teams/{teamId}.
 // Only platform_admin can delete teams.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	if !middleware.IsPlatformAdmin(r.Context()) {
-		httputil.WriteError(w, http.StatusForbidden, "Forbidden", "Only platform admins can delete teams", r.URL.Path)
+	if !auth.IsAdmin(auth.GetClaims(r.Context())) {
+		httputil.WriteError(w, http.StatusForbidden, "Forbidden", "Only admins can delete teams", r.URL.Path)
 		return
 	}
 
 	teamID := chi.URLParam(r, "teamId")
-
-	h.mu.Lock()
-	_, ok := h.teams[teamID]
-	if !ok {
-		h.mu.Unlock()
-		httputil.WriteError(w, http.StatusNotFound, "Not Found", "Team not found", r.URL.Path)
+	if teamID == auth.DefaultTeamID {
+		httputil.WriteError(w, http.StatusForbidden, "Forbidden", "Cannot delete the default team", r.URL.Path)
 		return
 	}
-	delete(h.teams, teamID)
-	delete(h.members, teamID)
-	h.mu.Unlock()
+
+	if err := h.repo.Delete(r.Context(), teamID); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			httputil.WriteError(w, http.StatusNotFound, "Not Found", "Team not found", r.URL.Path)
+			return
+		}
+		h.logger.Error("delete team failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to delete team", r.URL.Path)
+		return
+	}
 
 	h.logger.Info("team deleted", "id", teamID)
-
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"message": "Team deleted"})
 }
 
 // AddMember handles POST /api/v1/teams/{teamId}/members.
-// Requires platform_admin or team admin.
 func (h *Handler) AddMember(w http.ResponseWriter, r *http.Request) {
 	teamID := chi.URLParam(r, "teamId")
 
-	if !h.canManageTeam(r, teamID) {
+	if !h.canManageTeam(r.Context(), teamID) {
 		httputil.WriteError(w, http.StatusForbidden, "Forbidden", "Insufficient permissions to manage this team", r.URL.Path)
 		return
 	}
@@ -204,46 +170,41 @@ func (h *Handler) AddMember(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteError(w, http.StatusUnprocessableEntity, "Validation Error", "a valid email is required", r.URL.Path)
 		return
 	}
-
 	role := strings.TrimSpace(req.Role)
 	if !validRoles[role] {
 		httputil.WriteError(w, http.StatusUnprocessableEntity, "Validation Error", "role must be admin, developer, or viewer", r.URL.Path)
 		return
 	}
 
-	now := time.Now().UTC()
-	member := TeamMember{
-		UserID:   fmt.Sprintf("us_%s", ulid.Make().String()),
-		Email:    email,
-		Role:     role,
-		JoinedAt: now,
-	}
-
-	h.mu.Lock()
-	team, ok := h.teams[teamID]
-	if !ok {
-		h.mu.Unlock()
-		httputil.WriteError(w, http.StatusNotFound, "Not Found", "Team not found", r.URL.Path)
+	// Resolve email to user_id (the user must exist in the platform).
+	userID, err := h.repo.GetUserIDByEmail(r.Context(), email)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			httputil.WriteError(w, http.StatusNotFound, "Not Found", "No user with this email", r.URL.Path)
+			return
+		}
+		h.logger.Error("lookup user by email failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to look up user", r.URL.Path)
 		return
 	}
 
-	// Check for duplicate email.
-	for _, m := range h.members[teamID] {
-		if m.Email == email {
-			h.mu.Unlock()
+	membershipID := fmt.Sprintf("tm_%s", ulid.Make().String())
+	if err := h.repo.AddMember(r.Context(), membershipID, userID, teamID, role); err != nil {
+		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "23505") {
 			httputil.WriteError(w, http.StatusConflict, "Conflict", "User already a member of this team", r.URL.Path)
 			return
 		}
+		h.logger.Error("add member failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to add member", r.URL.Path)
+		return
 	}
 
-	h.members[teamID] = append(h.members[teamID], member)
-	team.MemberCount = len(h.members[teamID])
-	h.teams[teamID] = team
-	h.mu.Unlock()
-
 	h.logger.Info("member added to team", "team_id", teamID, "email", email, "role", role)
-
-	httputil.WriteJSON(w, http.StatusCreated, map[string]any{"data": member})
+	httputil.WriteJSON(w, http.StatusCreated, map[string]any{"data": TeamMember{
+		UserID: userID,
+		Email:  email,
+		Role:   role,
+	}})
 }
 
 // RemoveMember handles DELETE /api/v1/teams/{teamId}/members/{userId}.
@@ -251,41 +212,18 @@ func (h *Handler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	teamID := chi.URLParam(r, "teamId")
 	userID := chi.URLParam(r, "userId")
 
-	if !h.canManageTeam(r, teamID) {
+	if !h.canManageTeam(r.Context(), teamID) {
 		httputil.WriteError(w, http.StatusForbidden, "Forbidden", "Insufficient permissions to manage this team", r.URL.Path)
 		return
 	}
 
-	h.mu.Lock()
-	team, ok := h.teams[teamID]
-	if !ok {
-		h.mu.Unlock()
-		httputil.WriteError(w, http.StatusNotFound, "Not Found", "Team not found", r.URL.Path)
+	if err := h.repo.RemoveMember(r.Context(), teamID, userID); err != nil {
+		h.logger.Error("remove member failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to remove member", r.URL.Path)
 		return
 	}
-
-	members := h.members[teamID]
-	found := false
-	for i, m := range members {
-		if m.UserID == userID {
-			h.members[teamID] = append(members[:i], members[i+1:]...)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		h.mu.Unlock()
-		httputil.WriteError(w, http.StatusNotFound, "Not Found", "Member not found", r.URL.Path)
-		return
-	}
-
-	team.MemberCount = len(h.members[teamID])
-	h.teams[teamID] = team
-	h.mu.Unlock()
 
 	h.logger.Info("member removed from team", "team_id", teamID, "user_id", userID)
-
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"message": "Member removed"})
 }
 
@@ -294,7 +232,7 @@ func (h *Handler) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
 	teamID := chi.URLParam(r, "teamId")
 	userID := chi.URLParam(r, "userId")
 
-	if !h.canManageTeam(r, teamID) {
+	if !h.canManageTeam(r.Context(), teamID) {
 		httputil.WriteError(w, http.StatusForbidden, "Forbidden", "Insufficient permissions to manage this team", r.URL.Path)
 		return
 	}
@@ -311,53 +249,29 @@ func (h *Handler) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.mu.Lock()
-	if _, ok := h.teams[teamID]; !ok {
-		h.mu.Unlock()
-		httputil.WriteError(w, http.StatusNotFound, "Not Found", "Team not found", r.URL.Path)
-		return
-	}
-
-	members := h.members[teamID]
-	found := false
-	for i, m := range members {
-		if m.UserID == userID {
-			members[i].Role = role
-			found = true
-			break
-		}
-	}
-	h.mu.Unlock()
-
-	if !found {
-		httputil.WriteError(w, http.StatusNotFound, "Not Found", "Member not found", r.URL.Path)
+	if err := h.repo.UpdateMemberRole(r.Context(), teamID, userID, role); err != nil {
+		h.logger.Error("update member role failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to update role", r.URL.Path)
 		return
 	}
 
 	h.logger.Info("member role updated", "team_id", teamID, "user_id", userID, "role", role)
-
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"message": "Role updated"})
 }
 
-// canManageTeam checks if the caller is a platform_admin or an admin of the given team.
-func (h *Handler) canManageTeam(r *http.Request, teamID string) bool {
-	if middleware.IsPlatformAdmin(r.Context()) {
-		return true
-	}
-
-	claims := auth.GetClaims(r.Context())
-	if claims == nil || claims.TeamID != teamID {
+// canManageTeam checks if the caller is a platform admin or an admin of the given team.
+func (h *Handler) canManageTeam(ctx context.Context, teamID string) bool {
+	claims := auth.GetClaims(ctx)
+	if claims == nil {
 		return false
 	}
-
-	// Check if user is an admin of this team.
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	for _, m := range h.members[teamID] {
-		if m.UserID == claims.UserID && m.Role == "admin" {
-			return true
-		}
+	if auth.IsAdmin(claims) {
+		return true
 	}
-
-	return false
+	// Only team admins can manage their own team.
+	role, err := h.repo.GetMemberRole(ctx, teamID, claims.UserID)
+	if err != nil {
+		return false
+	}
+	return role == auth.RoleAdmin
 }
