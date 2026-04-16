@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Agent, fetchAgents, submitFeedback } from "@/lib/api";
+import { getAuthHeaders } from "@/lib/auth";
 import { ReefMarkdown } from "@/components/custom/reef-markdown";
 import { useNotifications } from "@/lib/notifications";
 import { useTheme } from "@/lib/theme";
@@ -9,6 +10,14 @@ import { AgentBlockRenderer } from "@/components/agui";
 import type { AgentBlock } from "@/components/agui";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
+/** Authenticated fetch for chat API calls. */
+function chatFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: { ...getAuthHeaders(), ...(init.headers as Record<string, string> | undefined) },
+  });
+}
 
 interface RAGSource {
   filename: string;
@@ -278,7 +287,7 @@ export default function ChatPage() {
       .finally(() => setLoading(false));
 
     // Fetch KB names for display
-    fetch(`${API_URL}/api/v1/knowledge-bases`)
+    chatFetch(`/api/v1/knowledge-bases`)
       .then((r) => r.json())
       .then((d) => {
         const names: Record<string, string> = {};
@@ -288,13 +297,18 @@ export default function ChatPage() {
       .catch(() => {});
   }, []);
 
-  // Handle deep-link from notification click
+  // Restore last conversation on mount (deep-link or refresh persistence)
   useEffect(() => {
     if (!selectedAgent) return;
     const pendingCid = localStorage.getItem("recif-chat-pending-cid");
     if (pendingCid) {
       localStorage.removeItem("recif-chat-pending-cid");
       loadConversation(pendingCid);
+      return;
+    }
+    const savedCid = localStorage.getItem("recif-chat-conversation");
+    if (savedCid) {
+      loadConversation(savedCid);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAgent]);
@@ -303,7 +317,7 @@ export default function ChatPage() {
     if (!selectedAgent) return;
     try {
       const slug = selectedAgent.slug || selectedAgent.name.toLowerCase().replace(/\s+/g, "-");
-      const res = await fetch(`${API_URL}/api/v1/agents/${slug}/conversations`);
+      const res = await chatFetch(`/api/v1/agents/${slug}/conversations`);
       if (res.ok) {
         const data = await res.json();
         setConversations(data.conversations || []);
@@ -322,9 +336,14 @@ export default function ChatPage() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Track active conversation so notifications skip it
+  // Track active conversation so notifications skip it + persist for refresh
   useEffect(() => {
     setActiveConversationId(conversationId);
+    if (conversationId) {
+      localStorage.setItem("recif-chat-conversation", conversationId);
+    } else {
+      localStorage.removeItem("recif-chat-conversation");
+    }
     return () => setActiveConversationId(null);
   }, [conversationId, setActiveConversationId]);
 
@@ -332,7 +351,7 @@ export default function ChatPage() {
   const fetchStaticSuggestions = useCallback(async (agent: Agent) => {
     try {
       const slug = agent.slug || agent.name.toLowerCase().replace(/\s+/g, "-");
-      const res = await fetch(`${API_URL}/api/v1/agents/${slug}/suggestions`);
+      const res = await chatFetch(`/api/v1/agents/${slug}/suggestions`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
@@ -385,7 +404,7 @@ export default function ChatPage() {
     setConversationId(cid);
     setSuggestions([]); setSuggestionsVisible(true);
     try {
-      const res = await fetch(`${API_URL}/api/v1/agents/${getSlug()}/conversations/${cid}`);
+      const res = await chatFetch(`/api/v1/agents/${getSlug()}/conversations/${cid}`);
       if (res.ok) {
         const data = await res.json();
         const loaded = parseMessages(data.messages || []);
@@ -401,7 +420,7 @@ export default function ChatPage() {
           // Direct poll for live display
           pollRef.current = setInterval(async () => {
             try {
-              const statusRes = await fetch(`${API_URL}/api/v1/agents/${slug}/conversations/${cid}/status`);
+              const statusRes = await chatFetch(`/api/v1/agents/${slug}/conversations/${cid}/status`);
               if (!statusRes.ok) return;
               const status = await statusRes.json();
 
@@ -418,7 +437,7 @@ export default function ChatPage() {
               } else if (!status.generating) {
                 // Done — load final response from storage
                 stopPolling();
-                const r = await fetch(`${API_URL}/api/v1/agents/${slug}/conversations/${cid}`);
+                const r = await chatFetch(`/api/v1/agents/${slug}/conversations/${cid}`);
                 if (r.ok) {
                   const d = await r.json();
                   setMessages(parseMessages(d.messages || []));
@@ -439,7 +458,7 @@ export default function ChatPage() {
   const deleteConversation = async (cid: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await fetch(`${API_URL}/api/v1/agents/${getSlug()}/conversations/${cid}`, { method: "DELETE" });
+      await chatFetch(`/api/v1/agents/${getSlug()}/conversations/${cid}`, { method: "DELETE" });
       if (conversationId === cid) { setConversationId(null); setMessages([]); }
       fetchConversations();
     } catch { /* best effort */ }
@@ -448,7 +467,7 @@ export default function ChatPage() {
   const copyConversation = async (cid: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const res = await fetch(`${API_URL}/api/v1/agents/${getSlug()}/conversations/${cid}`);
+      const res = await chatFetch(`/api/v1/agents/${getSlug()}/conversations/${cid}`);
       if (!res.ok) return;
       const data = await res.json();
       const msgs = data.messages || [];
@@ -497,7 +516,7 @@ export default function ChatPage() {
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/v1/agents/${getSlug()}/chat/stream`, {
+      const res = await chatFetch(`/api/v1/agents/${getSlug()}/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -695,7 +714,7 @@ export default function ChatPage() {
     const versionParam = variant === "canary" ? "?version=canary" : "";
     const startTime = Date.now();
     try {
-      const res = await fetch(`${API_URL}/api/v1/agents/${slug}/chat/stream${versionParam}`, {
+      const res = await chatFetch(`/api/v1/agents/${slug}/chat/stream${versionParam}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1203,14 +1222,14 @@ export default function ChatPage() {
 
                         // Confirm/cancel handlers for HITL blocks
                         const handleConfirm = (confirmId: string) => {
-                          fetch(`${API_URL}/api/v1/agents/${getSlug()}/confirm`, {
+                          chatFetch(`/api/v1/agents/${getSlug()}/confirm`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ id: confirmId, action: "confirm", conversation_id: conversationId }),
                           }).catch(() => {});
                         };
                         const handleCancel = (confirmId: string) => {
-                          fetch(`${API_URL}/api/v1/agents/${getSlug()}/confirm`, {
+                          chatFetch(`/api/v1/agents/${getSlug()}/confirm`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ id: confirmId, action: "cancel", conversation_id: conversationId }),
