@@ -128,10 +128,17 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Extract creator from JWT claims.
+	createdBy := ""
+	if claims := auth.GetClaims(r.Context()); claims != nil {
+		createdBy = claims.UserID
+	}
+
 	// New agent — write directly to K8s (or DB fallback). Fast and atomic.
 	created, err := h.repo.Create(r.Context(), CreateParams{
 		ID:          "ag_" + ulid.Make().String(),
 		TeamID:      teamID,
+		CreatedBy:   createdBy,
 		Name:        req.Name,
 		Slug:        slug,
 		Description: req.Description,
@@ -141,6 +148,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Config:      config,
 	})
 	if err != nil {
+		// K8s rejects duplicate names per namespace — treat as 409 slug collision.
+		if strings.Contains(err.Error(), "already exists") {
+			httputil.WriteError(w, http.StatusConflict, "Conflict", "An agent with this name already exists", r.URL.Path)
+			return
+		}
 		h.logger.Error("create agent failed", "error", err)
 		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to create agent", r.URL.Path)
 		return

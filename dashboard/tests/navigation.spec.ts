@@ -11,6 +11,7 @@ const pages = [
   { path: "/governance", label: "Governance" },
   { path: "/radar", label: "Radar" },
   { path: "/evaluations", label: "Evaluations" },
+  { path: "/teams", label: "Teams" },
   { path: "/settings", label: "Settings" },
   { path: "/memory", label: "Memory" },
 ];

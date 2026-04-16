@@ -15,6 +15,7 @@ const navItems = [
   { href: "/integrations", label: "Integrations", icon: "🔌" },
   { href: "/governance", label: "Governance", icon: "🛡️" },
   { href: "/radar", label: "AI Radar", icon: "📡" },
+  { href: "/teams", label: "Teams", icon: "👥" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 

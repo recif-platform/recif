@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	labelTeamID       = "recif.dev/team-id"
-	annotationAgentID = "recif.dev/agent-id"
+	labelTeamID        = "recif.dev/team-id"
+	annotationAgentID  = "recif.dev/agent-id"
+	annotationCreatedBy = "recif.dev/created-by"
 )
 
 // K8sRepository implements Repository using Kubernetes Agent CRDs as the source of truth.
@@ -188,6 +189,9 @@ func (r *K8sRepository) Create(ctx context.Context, params CreateParams) (*Agent
 	if params.TeamID != "" {
 		annotations[labelTeamID] = params.TeamID
 	}
+	if params.CreatedBy != "" {
+		annotations[annotationCreatedBy] = params.CreatedBy
+	}
 
 	labels := map[string]interface{}{}
 	if params.TeamID != "" {
@@ -348,6 +352,9 @@ func agentFromCRD(crd *unstructured.Unstructured) *Agent {
 	}
 	if teamID, ok := annotations[labelTeamID]; ok {
 		a.TeamID = teamID
+	}
+	if createdBy, ok := annotations[annotationCreatedBy]; ok {
+		a.CreatedBy = createdBy
 	}
 
 	// Spec fields

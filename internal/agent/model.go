@@ -16,6 +16,7 @@ const (
 type Agent struct {
 	ID          string      `json:"id"`
 	TeamID      string      `json:"team_id"`
+	CreatedBy   string      `json:"created_by,omitempty"`
 	Name        string      `json:"name"`
 	Slug        string      `json:"slug"`
 	Description string      `json:"description,omitempty"`
@@ -58,6 +59,7 @@ type CanaryInfo struct {
 type CreateParams struct {
 	ID          string
 	TeamID      string
+	CreatedBy   string
 	Name        string
 	Slug        string
 	Description string

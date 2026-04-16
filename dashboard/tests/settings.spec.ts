@@ -2,14 +2,13 @@ import { test, expect } from "@playwright/test";
 import { trackErrors, getAuthToken, apiCall } from "./helpers";
 
 test.describe("Settings & Teams", () => {
-  test("settings page loads with team info", async ({ page }) => {
+  test("settings page loads with platform config", async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto("/settings");
     await page.waitForLoadState("networkidle");
 
-    // Should show the Settings heading and Teams section
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-    await expect(page.getByText("Teams & Access")).toBeVisible();
+    await expect(page.getByText("Platform Configuration")).toBeVisible();
     errors.expectClean();
   });
 
