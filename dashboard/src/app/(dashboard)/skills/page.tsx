@@ -1,4 +1,5 @@
 "use client";
+import { getAuthHeaders } from "@/lib/auth";
 
 import { useEffect, useState, useCallback } from "react";
 import {
@@ -1349,7 +1350,7 @@ export default function SkillsPage() {
     // Persist to DB via dedicated endpoint
     const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/skills`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ skills: newSkills }),
     });
     if (!res.ok) throw new Error("Failed to assign");
@@ -1369,7 +1370,7 @@ export default function SkillsPage() {
 
     const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/skills`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ skills: newSkills }),
     });
     if (!res.ok) throw new Error("Failed to unassign");

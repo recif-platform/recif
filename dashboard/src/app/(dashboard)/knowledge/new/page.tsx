@@ -1,4 +1,5 @@
 "use client";
+import { getAuthHeaders } from "@/lib/auth";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -85,7 +86,7 @@ export default function NewKnowledgeBasePage() {
       }
       const res = await fetch(`${API_URL}/api/v1/knowledge-bases`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

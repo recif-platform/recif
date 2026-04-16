@@ -1,4 +1,5 @@
 "use client";
+import { getAuthHeaders } from "@/lib/auth";
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useParams } from "next/navigation";
@@ -111,8 +112,8 @@ export default function KnowledgeDetailPage() {
   const refresh = useCallback(async () => {
     try {
       const [kbRes, docsRes] = await Promise.all([
-        fetch(`${API_URL}/api/v1/knowledge-bases/${kbId}`).then((r) => r.json()),
-        fetch(`${API_URL}/api/v1/knowledge-bases/${kbId}/documents`).then((r) => r.json()).catch(() => ({ data: [] })),
+        fetch(`${API_URL}/api/v1/knowledge-bases/${kbId}`, { headers: getAuthHeaders() }).then((r) => r.json()),
+        fetch(`${API_URL}/api/v1/knowledge-bases/${kbId}/documents`, { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => ({ data: [] })),
       ]);
       const nextKb: KnowledgeBase | null = kbRes.data || null;
       const nextDocs: KBDocument[] = docsRes.data || [];
@@ -323,7 +324,7 @@ export default function KnowledgeDetailPage() {
     try {
       const res = await fetch(`${API_URL}/api/v1/knowledge-bases/${kbId}/search`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ query: retrievalQuery.trim(), top_k: retrievalTopK }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -374,7 +375,7 @@ export default function KnowledgeDetailPage() {
           <button
             onClick={async () => {
               if (!confirm(`Delete "${kb.name}" and all its documents?`)) return;
-              await fetch(`${API_URL}/api/v1/knowledge-bases/${kbId}`, { method: "DELETE" });
+              await fetch(`${API_URL}/api/v1/knowledge-bases/${kbId}`, { headers: getAuthHeaders(), method: "DELETE" });
               window.location.href = "/knowledge";
             }}
             style={{

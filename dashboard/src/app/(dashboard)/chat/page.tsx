@@ -518,7 +518,7 @@ export default function ChatPage() {
     try {
       const res = await chatFetch(`/api/v1/agents/${getSlug()}/chat/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({
           input: userMsg,
           conversation_id: conversationId,
@@ -716,7 +716,7 @@ export default function ChatPage() {
     try {
       const res = await chatFetch(`/api/v1/agents/${slug}/chat/stream${versionParam}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({
           input: userMsg,
           options: { use_rag: activeKBs.size > 0, active_kbs: Array.from(activeKBs) },
@@ -1224,14 +1224,14 @@ export default function ChatPage() {
                         const handleConfirm = (confirmId: string) => {
                           chatFetch(`/api/v1/agents/${getSlug()}/confirm`, {
                             method: "POST",
-                            headers: { "Content-Type": "application/json" },
+                            headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
                             body: JSON.stringify({ id: confirmId, action: "confirm", conversation_id: conversationId }),
                           }).catch(() => {});
                         };
                         const handleCancel = (confirmId: string) => {
                           chatFetch(`/api/v1/agents/${getSlug()}/confirm`, {
                             method: "POST",
-                            headers: { "Content-Type": "application/json" },
+                            headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
                             body: JSON.stringify({ id: confirmId, action: "cancel", conversation_id: conversationId }),
                           }).catch(() => {});
                         };

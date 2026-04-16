@@ -3,9 +3,12 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
+	"github.com/oklog/ulid/v2"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/sciences44/recif/internal/httputil"
@@ -17,6 +20,7 @@ type UserManager interface {
 	GetByID(ctx context.Context, id string) (*user.User, error)
 	GetByEmailForLogin(ctx context.Context, email string) (*user.User, string, error)
 	GetHashByEmail(ctx context.Context, email string) (id, hash string, err error)
+	Create(ctx context.Context, id, email, name, role, plainPassword string) (*user.User, error)
 	UpdateProfile(ctx context.Context, id, name, email string) (*user.User, error)
 	UpdatePassword(ctx context.Context, id, plainPassword string) error
 }
@@ -171,4 +175,62 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, map[string]string{"message": "Password changed successfully"})
+}
+
+// RegisterRequest is the payload for POST /auth/register.
+type RegisterRequest struct {
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
+// Register handles POST /api/v1/auth/register — public self-registration.
+// New users get the "developer" role by default and are added to the default team.
+func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
+	var req RegisterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.WriteError(w, http.StatusBadRequest, "Bad Request", "Invalid JSON", r.URL.Path)
+		return
+	}
+
+	email := strings.TrimSpace(req.Email)
+	name := strings.TrimSpace(req.Name)
+	if email == "" || !strings.Contains(email, "@") {
+		httputil.WriteError(w, http.StatusBadRequest, "Bad Request", "A valid email is required", r.URL.Path)
+		return
+	}
+	if name == "" {
+		httputil.WriteError(w, http.StatusBadRequest, "Bad Request", "Name is required", r.URL.Path)
+		return
+	}
+	if len(req.Password) < 8 {
+		httputil.WriteError(w, http.StatusBadRequest, "Bad Request", "Password must be at least 8 characters", r.URL.Path)
+		return
+	}
+
+	id := fmt.Sprintf("us_%s", ulid.Make().String())
+	u, err := h.users.Create(r.Context(), id, email, name, RoleDeveloper, req.Password)
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "23505") {
+			httputil.WriteError(w, http.StatusConflict, "Conflict", "An account with this email already exists", r.URL.Path)
+			return
+		}
+		h.logger.Error("registration failed", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to create account", r.URL.Path)
+		return
+	}
+
+	token, err := h.jwt.IssueToken(&Claims{
+		UserID: u.ID,
+		TeamID: DefaultTeamID,
+		Role:   u.Role,
+		Email:  u.Email,
+	})
+	if err != nil {
+		h.logger.Error("failed to issue token after registration", "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Account created but login failed", r.URL.Path)
+		return
+	}
+
+	httputil.WriteJSON(w, http.StatusCreated, LoginResponse{Token: token, User: u})
 }

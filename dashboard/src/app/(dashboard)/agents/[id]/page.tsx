@@ -1,4 +1,5 @@
 "use client";
+import { getAuthHeaders } from "@/lib/auth";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
@@ -187,7 +188,7 @@ export default function AgentDetailPage() {
       // Re-fetch after a short delay to get updated phase from operator
       setTimeout(async () => {
         try {
-          const res = await fetch(`${API_URL}/api/v1/agents/${agentId}`);
+          const res = await fetch(`${API_URL}/api/v1/agents/${agentId}`, { headers: getAuthHeaders() });
           if (res.ok) {
             const data = await res.json();
             setAgent(data.data);
@@ -208,7 +209,7 @@ export default function AgentDetailPage() {
     try {
       const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/config`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ replicas: newReplicas }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -287,7 +288,7 @@ export default function AgentDetailPage() {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/agents/${getSlug()}/conversations`);
+      const res = await fetch(`${API_URL}/api/v1/agents/${getSlug()}/conversations`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setConversations(data.conversations || []);
@@ -307,7 +308,7 @@ export default function AgentDetailPage() {
     setConversationId(cid);
     localStorage.setItem(storageKey, cid);
     try {
-      const res = await fetch(`${API_URL}/api/v1/agents/${getSlug()}/conversations/${cid}`);
+      const res = await fetch(`${API_URL}/api/v1/agents/${getSlug()}/conversations/${cid}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const loaded: ChatMessage[] = (data.messages || []).map((m: { role: string; content: string }) => ({
@@ -331,12 +332,12 @@ export default function AgentDetailPage() {
 
     const loadAgent = () => {
       Promise.all([
-        fetch(`${API_URL}/api/v1/agents/${agentId}`).then(r => {
+        fetch(`${API_URL}/api/v1/agents/${agentId}`, { headers: getAuthHeaders() }).then(r => {
           if (!r.ok) throw new Error(`status_${r.status}`);
           return r.json();
         }),
-        fetch(`${API_URL}/api/v1/agents/${agentId}/versions`).then(r => r.json()).catch(() => ({ data: [] })),
-        fetch(`${API_URL}/api/v1/knowledge-bases`).then(r => r.json()).catch(() => ({ data: [] })),
+        fetch(`${API_URL}/api/v1/agents/${agentId}/versions`, { headers: getAuthHeaders() }).then(r => r.json()).catch(() => ({ data: [] })),
+        fetch(`${API_URL}/api/v1/knowledge-bases`, { headers: getAuthHeaders() }).then(r => r.json()).catch(() => ({ data: [] })),
       ])
         .then(([agentRes, versionsRes, kbsRes]) => {
           if (cancelled) return;
@@ -464,7 +465,7 @@ export default function AgentDetailPage() {
     try {
       const res = await fetch(`${API_URL}/api/v1/agents/${getSlug()}/chat/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ input: userMsg, conversation_id: conversationId }),
         signal: controller.signal,
       });
@@ -563,7 +564,7 @@ export default function AgentDetailPage() {
       // POST /releases separately.
       const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/config`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getAuthHeaders(), ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

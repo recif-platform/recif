@@ -1,4 +1,5 @@
 "use client";
+import { getAuthHeaders } from "@/lib/auth";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -27,7 +28,7 @@ export default function AgentsPage() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
     // Fetch KB names for display
-    fetch(`${API_URL}/api/v1/knowledge-bases`)
+    fetch(`${API_URL}/api/v1/knowledge-bases`, { headers: getAuthHeaders() })
       .then((r) => r.json())
       .then((data) => {
         const map: Record<string, string> = {};

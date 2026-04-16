@@ -24,9 +24,10 @@ func (s *Server) routes() http.Handler {
 
 	// API v1
 	r.Route("/api/v1", func(r chi.Router) {
-		// Public endpoint — no JWT required
+		// Public endpoints — no JWT required
 		if s.authHandler != nil {
 			r.Post("/auth/login", s.authHandler.Login)
+			r.Post("/auth/register", s.authHandler.Register)
 		}
 
 		// All other routes require a valid JWT (or dev-mode bypass)

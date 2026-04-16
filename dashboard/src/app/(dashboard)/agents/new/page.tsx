@@ -1,4 +1,5 @@
 "use client";
+import { getAuthHeaders } from "@/lib/auth";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -229,7 +230,7 @@ export default function CreateAgentWizard() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
       const res = await fetch(`${API_URL}/api/v1/agents`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
           description,
@@ -249,7 +250,7 @@ export default function CreateAgentWizard() {
       if (newId) {
         // Auto-deploy the agent
         try {
-          await fetch(`${API_URL}/api/v1/agents/${newId}/deploy`, { method: "POST" });
+          await fetch(`${API_URL}/api/v1/agents/${newId}/deploy`, { headers: getAuthHeaders(), method: "POST" });
         } catch {
           // Deploy failed, agent still created — user can deploy manually
         }
@@ -285,7 +286,7 @@ export default function CreateAgentWizard() {
       };
       const res = await fetch(`${API_URL}/api/v1/scaffold`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 

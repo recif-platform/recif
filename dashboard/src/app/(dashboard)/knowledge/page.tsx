@@ -1,4 +1,5 @@
 "use client";
+import { getAuthHeaders } from "@/lib/auth";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -29,7 +30,7 @@ export default function KnowledgeListPage() {
   const { colors } = useTheme();
 
   useEffect(() => {
-    fetch(`${API_URL}/api/v1/knowledge-bases`)
+    fetch(`${API_URL}/api/v1/knowledge-bases`, { headers: getAuthHeaders() })
       .then((r) => r.json())
       .then((d) => setKbs(d.data || []))
       .catch(() => {})

@@ -45,6 +45,19 @@ export async function login(email: string, password: string): Promise<{ token: s
   return res.json();
 }
 
+export async function register(email: string, name: string, password: string): Promise<{ token: string; user: CurrentUser }> {
+  const res = await fetch(`${API_URL}/api/v1/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, name, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || err.error || "Registration failed");
+  }
+  return res.json();
+}
+
 export async function fetchCurrentUser(): Promise<CurrentUser> {
   const res = await apiFetch("/api/v1/auth/me");
   if (!res.ok) throw new Error("Not authenticated");
