@@ -245,7 +245,7 @@ export default function CreateAgentWizard() {
           description,
           agent_type: "ready",
           framework: "corail",
-          version: "1",
+          version: "0.1.0",
           model_type: provider,
           model_id: modelId,
           system_prompt: systemPrompt,

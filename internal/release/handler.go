@@ -200,17 +200,6 @@ func (h *Handler) createReleaseForAgent(ctx context.Context, agentID, changelog 
 		return 0, fmt.Errorf("commit release: %w", err)
 	}
 
-	// Sync CRD spec.version with the release number so operator + MLflow use v1, v2, etc.
-	if h.k8sWriter != nil {
-		namespace := artifact.Deployment.Namespace
-		if namespace == "" {
-			namespace = "team-default"
-		}
-		_ = h.k8sWriter.PatchSpec(ctx, namespace, slug, map[string]interface{}{
-			"version": fmt.Sprintf("%d", nextVersion),
-		})
-	}
-
 	h.bus.Emit(ctx, eventbus.Event{
 		Type: eventbus.ReleaseCreated,
 		Payload: map[string]any{
