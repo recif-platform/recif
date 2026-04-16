@@ -169,12 +169,16 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 | Secret management | 🟢 | 3 modes: inline, External Secrets (Vault/GCP SM/AWS), Workload Identity |
 | Helm one-command install | 🟢 | Full platform in a single `helm install` |
 
+| Authentication & RBAC | 🟢 | JWT login, user management, role-based access (admin/developer/viewer) |
+| Teams & access control | 🟢 | Team CRUD in PostgreSQL, member management, agent visibility per team, K8s namespace per team |
+| Discord feedback | 🟢 | 👍/👎 reactions logged to MLflow, universal tracing across all channels |
+| E2E test suite | 🟢 | 46 Playwright tests + Go unit tests, CI pipeline on every push |
+
 ### In Progress
 
 | Feature | Status | Description |
 |---------|:------:|-------------|
 | Agent Marketplace | 🟠 | Users browse and subscribe to published agents |
-| Admin / User roles | 🟠 | Role separation: admins manage, users consume via marketplace |
 | Agent publish flow | 🟠 | Creator tests, evaluates, then publishes to marketplace |
 | Governance scorecards | 🟡 | 4-dimension scoring (quality, safety, cost, compliance) |
 | Agent memory inheritance | 🟡 | Versioned memory artifacts, inheritable across agents |
@@ -183,12 +187,14 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 | Feature | Status | Description |
 |---------|:------:|-------------|
-| Multi-tenant namespaces | 🔴 | Team isolation with per-namespace quotas and RBAC |
+| Team switcher | 🔴 | Users in multiple teams can switch context from the topbar (like GitHub org switcher) |
+| Multi-tenant namespaces | 🔴 | Per-team resource quotas, network policies, and full RBAC isolation |
+| Self-registration | 🔴 | Public sign-up page, email verification, admin approval flow |
 | MCP tool marketplace | 🔴 | Share and discover MCP-compatible tools across teams |
 | Prompt registry | 🔴 | Versioned prompt templates synced to MLflow |
 | Cost tracking | 🔴 | Per-agent token usage, budget alerts, cost allocation |
 | Audit trail | 🔴 | Full audit log for compliance (who changed what, when) |
-| Distributed event bus | 🔵 | Agent-to-agent communication, pub/sub, choreography. In-process EventBus exists per pod — the architecture supports distributed eventing, waiting for real market demand before implementing. |
+| Distributed event bus | 🔵 | Agent-to-agent communication, pub/sub, choreography |
 
 > 🟢 Done  🟠 In progress  🟡 Designed  🔴 Planned  🔵 Future (architecture ready, market-driven)
 
