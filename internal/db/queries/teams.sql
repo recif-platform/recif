@@ -1,5 +1,9 @@
 -- name: GetTeam :one
-SELECT * FROM teams WHERE id = $1;
+SELECT t.*, COUNT(tm.id)::int AS member_count
+FROM teams t
+LEFT JOIN team_memberships tm ON t.id = tm.team_id
+WHERE t.id = $1
+GROUP BY t.id;
 
 -- name: CreateTeam :one
 INSERT INTO teams (id, name, slug, description)
@@ -7,13 +11,14 @@ VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: ListTeams :many
-SELECT * FROM teams ORDER BY created_at ASC;
+SELECT t.*, COUNT(tm.id)::int AS member_count
+FROM teams t
+LEFT JOIN team_memberships tm ON t.id = tm.team_id
+GROUP BY t.id
+ORDER BY t.created_at ASC;
 
 -- name: DeleteTeam :exec
 DELETE FROM teams WHERE id = $1;
-
--- name: CountTeamMembers :one
-SELECT COUNT(*) FROM team_memberships WHERE team_id = $1;
 
 -- name: ListTeamMembers :many
 SELECT tm.id, tm.user_id, u.email, tm.role, tm.created_at

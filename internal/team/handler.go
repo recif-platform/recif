@@ -61,7 +61,6 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 // Create handles POST /api/v1/teams.
-// Only platform_admin can create teams.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if !auth.IsAdmin(auth.GetClaims(r.Context())) {
 		httputil.WriteError(w, http.StatusForbidden, "Forbidden", "Only admins can create teams", r.URL.Path)
@@ -81,7 +80,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := fmt.Sprintf("tk_%s", ulid.Make().String())
-	slug := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
+	slug := httputil.Slugify(name)
 
 	team, err := h.repo.Create(r.Context(), id, name, slug, strings.TrimSpace(req.Description))
 	if err != nil {
@@ -123,7 +122,6 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // Delete handles DELETE /api/v1/teams/{teamId}.
-// Only platform_admin can delete teams.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	if !auth.IsAdmin(auth.GetClaims(r.Context())) {
 		httputil.WriteError(w, http.StatusForbidden, "Forbidden", "Only admins can delete teams", r.URL.Path)

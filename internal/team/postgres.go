@@ -34,8 +34,7 @@ func (r *PostgresRepository) Get(ctx context.Context, id string) (*Team, error) 
 		}
 		return nil, fmt.Errorf("get team %s: %w", id, err)
 	}
-	count, _ := r.q.CountTeamMembers(ctx, id)
-	return rowToTeam(row, int(count)), nil
+	return getRowToTeam(row), nil
 }
 
 func (r *PostgresRepository) Create(ctx context.Context, id, name, slug, description string) (*Team, error) {
@@ -48,7 +47,7 @@ func (r *PostgresRepository) Create(ctx context.Context, id, name, slug, descrip
 	if err != nil {
 		return nil, fmt.Errorf("create team: %w", err)
 	}
-	return rowToTeam(row, 0), nil
+	return createRowToTeam(row), nil
 }
 
 func (r *PostgresRepository) List(ctx context.Context) ([]*Team, error) {
@@ -58,8 +57,7 @@ func (r *PostgresRepository) List(ctx context.Context) ([]*Team, error) {
 	}
 	teams := make([]*Team, len(rows))
 	for i, row := range rows {
-		count, _ := r.q.CountTeamMembers(ctx, row.ID)
-		teams[i] = rowToTeam(row, int(count))
+		teams[i] = listRowToTeam(row)
 	}
 	return teams, nil
 }
@@ -142,14 +140,37 @@ func (r *PostgresRepository) GetUserIDByEmail(ctx context.Context, email string)
 	return id, nil
 }
 
-func rowToTeam(row db.Team, memberCount int) *Team {
+func getRowToTeam(row db.GetTeamRow) *Team {
 	return &Team{
 		ID:          row.ID,
 		Name:        row.Name,
 		Slug:        row.Slug,
 		Description: row.Description,
 		Namespace:   "team-" + row.Slug,
-		MemberCount: memberCount,
+		MemberCount: int(row.MemberCount),
+		CreatedAt:   row.CreatedAt.Time,
+	}
+}
+
+func listRowToTeam(row db.ListTeamsRow) *Team {
+	return &Team{
+		ID:          row.ID,
+		Name:        row.Name,
+		Slug:        row.Slug,
+		Description: row.Description,
+		Namespace:   "team-" + row.Slug,
+		MemberCount: int(row.MemberCount),
+		CreatedAt:   row.CreatedAt.Time,
+	}
+}
+
+func createRowToTeam(row db.Team) *Team {
+	return &Team{
+		ID:          row.ID,
+		Name:        row.Name,
+		Slug:        row.Slug,
+		Description: row.Description,
+		Namespace:   "team-" + row.Slug,
 		CreatedAt:   row.CreatedAt.Time,
 	}
 }

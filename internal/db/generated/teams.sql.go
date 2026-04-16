@@ -42,17 +42,6 @@ func (q *Queries) AddTeamMember(ctx context.Context, arg AddTeamMemberParams) (T
 	return i, err
 }
 
-const countTeamMembers = `-- name: CountTeamMembers :one
-SELECT COUNT(*) FROM team_memberships WHERE team_id = $1
-`
-
-func (q *Queries) CountTeamMembers(ctx context.Context, teamID string) (int64, error) {
-	row := q.db.QueryRow(ctx, countTeamMembers, teamID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const createTeam = `-- name: CreateTeam :one
 INSERT INTO teams (id, name, slug, description)
 VALUES ($1, $2, $3, $4)
@@ -95,12 +84,26 @@ func (q *Queries) DeleteTeam(ctx context.Context, id string) error {
 }
 
 const getTeam = `-- name: GetTeam :one
-SELECT id, name, slug, created_at, updated_at, description FROM teams WHERE id = $1
+SELECT t.id, t.name, t.slug, t.created_at, t.updated_at, t.description, COUNT(tm.id)::int AS member_count
+FROM teams t
+LEFT JOIN team_memberships tm ON t.id = tm.team_id
+WHERE t.id = $1
+GROUP BY t.id
 `
 
-func (q *Queries) GetTeam(ctx context.Context, id string) (Team, error) {
+type GetTeamRow struct {
+	ID          string             `json:"id"`
+	Name        string             `json:"name"`
+	Slug        string             `json:"slug"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	Description string             `json:"description"`
+	MemberCount int32              `json:"member_count"`
+}
+
+func (q *Queries) GetTeam(ctx context.Context, id string) (GetTeamRow, error) {
 	row := q.db.QueryRow(ctx, getTeam, id)
-	var i Team
+	var i GetTeamRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -108,6 +111,7 @@ func (q *Queries) GetTeam(ctx context.Context, id string) (Team, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Description,
+		&i.MemberCount,
 	)
 	return i, err
 }
@@ -182,18 +186,32 @@ func (q *Queries) ListTeamMembers(ctx context.Context, teamID string) ([]ListTea
 }
 
 const listTeams = `-- name: ListTeams :many
-SELECT id, name, slug, created_at, updated_at, description FROM teams ORDER BY created_at ASC
+SELECT t.id, t.name, t.slug, t.created_at, t.updated_at, t.description, COUNT(tm.id)::int AS member_count
+FROM teams t
+LEFT JOIN team_memberships tm ON t.id = tm.team_id
+GROUP BY t.id
+ORDER BY t.created_at ASC
 `
 
-func (q *Queries) ListTeams(ctx context.Context) ([]Team, error) {
+type ListTeamsRow struct {
+	ID          string             `json:"id"`
+	Name        string             `json:"name"`
+	Slug        string             `json:"slug"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	Description string             `json:"description"`
+	MemberCount int32              `json:"member_count"`
+}
+
+func (q *Queries) ListTeams(ctx context.Context) ([]ListTeamsRow, error) {
 	rows, err := q.db.Query(ctx, listTeams)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Team{}
+	items := []ListTeamsRow{}
 	for rows.Next() {
-		var i Team
+		var i ListTeamsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -201,6 +219,7 @@ func (q *Queries) ListTeams(ctx context.Context) ([]Team, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Description,
+			&i.MemberCount,
 		); err != nil {
 			return nil, err
 		}
