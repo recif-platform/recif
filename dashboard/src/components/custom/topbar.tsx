@@ -1,10 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { NotificationBell } from "./notification-bell";
 import { useTheme } from "@/lib/theme";
-import { fetchCurrentUser, type CurrentUser } from "@/lib/api";
+import { useCurrentUser } from "@/lib/current-user";
 import { clearToken } from "@/lib/auth";
 
 /** Map path segments to readable labels */
@@ -125,20 +124,6 @@ function ThemeToggle() {
       )}
     </button>
   );
-}
-
-function useCurrentUser() {
-  const [user, setUser] = useState<CurrentUser | null>(null);
-
-  useEffect(() => {
-    fetchCurrentUser()
-      .then(setUser)
-      .catch(() => {
-        // If auth is disabled or request fails, leave user as null (show defaults)
-      });
-  }, []);
-
-  return user;
 }
 
 function UserAvatar() {

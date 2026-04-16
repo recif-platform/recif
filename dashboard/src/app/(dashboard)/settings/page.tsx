@@ -2,13 +2,12 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useTheme } from "@/lib/theme";
+import { useCurrentUser } from "@/lib/current-user";
 import {
   fetchPlatformConfig,
   updatePlatformConfig,
   testPlatformConnections,
   syncFromStateRepo,
-  fetchCurrentUser,
-  type CurrentUser,
   type PlatformConfig,
   type ConnectionTestResult,
   type SyncResult,
@@ -21,7 +20,7 @@ export default function SettingsPage() {
   const [platformTest, setPlatformTest] = useState<ConnectionTestResult | null>(null);
   const [platformError, setPlatformError] = useState("");
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const currentUser = useCurrentUser();
   const { colors } = useTheme();
 
   const loadPlatformConfig = useCallback(async () => {
@@ -32,10 +31,7 @@ export default function SettingsPage() {
     } catch {}
   }, []);
 
-  useEffect(() => {
-    loadPlatformConfig();
-    fetchCurrentUser().then(setCurrentUser).catch(() => {});
-  }, [loadPlatformConfig]);
+  useEffect(() => { loadPlatformConfig(); }, [loadPlatformConfig]);
 
   return (
     <div className="max-w-3xl space-y-8">

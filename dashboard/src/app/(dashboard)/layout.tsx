@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/custom/sidebar";
 import { CommandPalette } from "@/components/custom/command-palette";
 import { Topbar } from "@/components/custom/topbar";
 import { NotificationProvider } from "@/lib/notifications";
+import { CurrentUserProvider } from "@/lib/current-user";
 import { ThemeProvider, useTheme } from "@/lib/theme";
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -34,9 +35,11 @@ export default function DashboardLayout({
 }) {
   return (
     <ThemeProvider>
-      <NotificationProvider>
-        <DashboardShell>{children}</DashboardShell>
-      </NotificationProvider>
+      <CurrentUserProvider>
+        <NotificationProvider>
+          <DashboardShell>{children}</DashboardShell>
+        </NotificationProvider>
+      </CurrentUserProvider>
     </ThemeProvider>
   );
 }

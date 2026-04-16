@@ -10,11 +10,10 @@ import {
   addTeamMember,
   removeTeamMember,
   updateMemberRole,
-  fetchCurrentUser,
   type Team,
   type TeamMember,
-  type CurrentUser,
 } from "@/lib/api";
+import { useCurrentUser } from "@/lib/current-user";
 
 const roleBadgeColors: Record<string, { bg: string; text: string }> = {
   platform_admin: { bg: "rgba(244,114,182,0.15)", text: "#f472b6" },
@@ -191,7 +190,7 @@ export default function TeamsPage() {
   const [newTeamName, setNewTeamName] = useState("");
   const [newTeamDesc, setNewTeamDesc] = useState("");
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const currentUser = useCurrentUser();
   const { colors } = useTheme();
 
   const loadTeams = useCallback(async () => {
@@ -200,10 +199,7 @@ export default function TeamsPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => {
-    loadTeams();
-    fetchCurrentUser().then(setCurrentUser).catch(() => {});
-  }, [loadTeams]);
+  useEffect(() => { loadTeams(); }, [loadTeams]);
 
   const handleCreateTeam = async () => {
     const name = newTeamName.trim();
