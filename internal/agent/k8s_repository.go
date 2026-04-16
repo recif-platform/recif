@@ -71,10 +71,30 @@ func (r *K8sRepository) GetBySlug(ctx context.Context, teamID, slug string) (*Ag
 	return agentFromCRD(crd), nil
 }
 
-// ListByTeam lists agents in the team's namespace.
+// ListByTeam lists agents owned by the given team, using a label selector.
 func (r *K8sRepository) ListByTeam(ctx context.Context, teamID string, limit, offset int32) ([]Agent, error) {
-	ns := r.namespaceForTeam(teamID)
-	return r.listInNamespace(ctx, ns, limit, offset)
+	opts := metav1.ListOptions{}
+	if teamID != "" {
+		opts.LabelSelector = "recif.dev/team-id=" + teamID
+	}
+	list, err := r.client.Resource(agentGVR).Namespace(r.namespace).List(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("list agents by team: %w", err)
+	}
+
+	agents := make([]Agent, 0, len(list.Items))
+	for i := range list.Items {
+		agents = append(agents, *agentFromCRD(&list.Items[i]))
+	}
+
+	if int(offset) >= len(agents) {
+		return []Agent{}, nil
+	}
+	agents = agents[offset:]
+	if int(limit) > 0 && int(limit) < len(agents) {
+		agents = agents[:limit]
+	}
+	return agents, nil
 }
 
 // ListAll lists agents across the default namespace.
@@ -186,6 +206,11 @@ func (r *K8sRepository) Create(ctx context.Context, params CreateParams) (*Agent
 		annotations["recif.dev/team-id"] = params.TeamID
 	}
 
+	labels := map[string]interface{}{}
+	if params.TeamID != "" {
+		labels["recif.dev/team-id"] = params.TeamID
+	}
+
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "agents.recif.dev/v1",
@@ -194,6 +219,7 @@ func (r *K8sRepository) Create(ctx context.Context, params CreateParams) (*Agent
 				"name":        slug,
 				"namespace":   r.namespace,
 				"annotations": annotations,
+				"labels":      labels,
 			},
 			"spec": spec,
 		},

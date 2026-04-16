@@ -10,6 +10,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/oklog/ulid/v2"
 
+	"github.com/sciences44/recif/internal/auth"
 	"github.com/sciences44/recif/internal/eventbus"
 	"github.com/sciences44/recif/internal/httputil"
 	"github.com/sciences44/recif/internal/server/middleware"
@@ -160,6 +161,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // List handles GET /api/v1/agents.
+// Admins see all agents; other users see only their team's agents.
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	if h.repo == nil {
 		httputil.WriteError(w, http.StatusServiceUnavailable, "Service Unavailable", "Database not configured", r.URL.Path)
@@ -167,13 +169,17 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	search := r.URL.Query().Get("search")
 	namespace := middleware.NamespaceFromContext(r.Context())
+	teamID := middleware.TeamFromContext(r.Context())
+	isAdmin := isAdminRole(r)
 
 	var agents []Agent
 	var err error
 	if search != "" {
 		agents, err = h.repo.Search(r.Context(), search, 100, 0)
-	} else {
+	} else if isAdmin {
 		agents, err = h.repo.ListAll(r.Context(), 100, 0)
+	} else {
+		agents, err = h.repo.ListByTeam(r.Context(), teamID, 100, 0)
 	}
 	if err != nil {
 		h.logger.Error("list agents failed", "error", err)
@@ -210,6 +216,11 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 		h.logger.Error("get agent failed", "error", err, "id", id)
 		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to get agent", r.URL.Path)
+		return
+	}
+
+	if !canAccessAgent(r, agent) {
+		httputil.WriteError(w, http.StatusNotFound, "Not Found", "Agent not found", r.URL.Path)
 		return
 	}
 
@@ -280,7 +291,8 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"data": updated})
 }
 
-// resolveAgent fetches an agent by the URL param {id}. Writes errors and returns false on failure.
+// resolveAgent fetches an agent by the URL param {id} and checks team access.
+// Returns 404 for both missing agents and access denied (no info leak).
 func resolveAgent(repo Repository, logger *slog.Logger, w http.ResponseWriter, r *http.Request) (*Agent, bool) {
 	if repo == nil {
 		httputil.WriteError(w, http.StatusServiceUnavailable, "Service Unavailable", "Database not configured", r.URL.Path)
@@ -295,6 +307,10 @@ func resolveAgent(repo Repository, logger *slog.Logger, w http.ResponseWriter, r
 		}
 		logger.Error("get agent failed", "error", err, "id", id)
 		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to get agent", r.URL.Path)
+		return nil, false
+	}
+	if !canAccessAgent(r, agent) {
+		httputil.WriteError(w, http.StatusNotFound, "Not Found", "Agent not found", r.URL.Path)
 		return nil, false
 	}
 	return agent, true
@@ -328,6 +344,22 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	})
 
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"status": "deleted", "id": agent.ID})
+}
+
+// isAdminRole returns true if the caller has an admin or platform_admin role.
+func isAdminRole(r *http.Request) bool {
+	claims := auth.GetClaims(r.Context())
+	return claims != nil && (claims.Role == "admin" || claims.Role == "platform_admin")
+}
+
+// canAccessAgent returns true if the caller is admin or owns the agent's team.
+func canAccessAgent(r *http.Request, agent *Agent) bool {
+	if isAdminRole(r) {
+		return true
+	}
+	teamID := middleware.TeamFromContext(r.Context())
+	// Agents without a team are accessible to everyone (legacy/default).
+	return agent.TeamID == "" || agent.TeamID == teamID
 }
 
 // agentSlug returns the slug for an agent, deriving from name if empty.
