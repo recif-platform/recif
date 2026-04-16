@@ -168,15 +168,18 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	search := r.URL.Query().Get("search")
-	namespace := middleware.NamespaceFromContext(r.Context())
 	teamID := middleware.TeamFromContext(r.Context())
-	isAdmin := isAdminRole(r)
+	admin := auth.IsAdmin(auth.GetClaims(r.Context()))
 
 	var agents []Agent
 	var err error
 	if search != "" {
 		agents, err = h.repo.Search(r.Context(), search, 100, 0)
-	} else if isAdmin {
+		// Filter search results by team for non-admins.
+		if err == nil && !admin {
+			agents = filterByTeam(agents, teamID)
+		}
+	} else if admin {
 		agents, err = h.repo.ListAll(r.Context(), 100, 0)
 	} else {
 		agents, err = h.repo.ListByTeam(r.Context(), teamID, 100, 0)
@@ -189,6 +192,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	// Enrich with K8s CRD data (only needed for PostgresRepository — K8sRepository already has full data)
 	if h.k8sReader != nil && !h.repo.IsK8sBacked() {
+		namespace := middleware.NamespaceFromContext(r.Context())
 		ptrs := make([]*Agent, len(agents))
 		for i := range agents {
 			ptrs[i] = &agents[i]
@@ -239,6 +243,23 @@ func (h *Handler) ListVersions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := chi.URLParam(r, "id")
+
+	agent, err := h.repo.Get(r.Context(), id)
+	if err != nil {
+		if err == ErrNotFound {
+			httputil.WriteError(w, http.StatusNotFound, "Not Found", "Agent not found", r.URL.Path)
+			return
+		}
+		h.logger.Error("list versions failed", "error", err, "agent_id", id)
+		httputil.WriteError(w, http.StatusInternalServerError, "Internal Error", "Failed to get agent", r.URL.Path)
+		return
+	}
+
+	if !canAccessAgent(r, agent) {
+		httputil.WriteError(w, http.StatusNotFound, "Not Found", "Agent not found", r.URL.Path)
+		return
+	}
+
 	versions, err := h.repo.ListVersions(r.Context(), id)
 	if err != nil {
 		h.logger.Error("list versions failed", "error", err, "agent_id", id)
@@ -346,20 +367,25 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"status": "deleted", "id": agent.ID})
 }
 
-// isAdminRole returns true if the caller has an admin or platform_admin role.
-func isAdminRole(r *http.Request) bool {
-	claims := auth.GetClaims(r.Context())
-	return claims != nil && (claims.Role == "admin" || claims.Role == "platform_admin")
-}
-
 // canAccessAgent returns true if the caller is admin or owns the agent's team.
 func canAccessAgent(r *http.Request, agent *Agent) bool {
-	if isAdminRole(r) {
+	if auth.IsAdmin(auth.GetClaims(r.Context())) {
 		return true
 	}
 	teamID := middleware.TeamFromContext(r.Context())
 	// Agents without a team are accessible to everyone (legacy/default).
 	return agent.TeamID == "" || agent.TeamID == teamID
+}
+
+// filterByTeam keeps only agents that belong to the given team (or have no team).
+func filterByTeam(agents []Agent, teamID string) []Agent {
+	filtered := make([]Agent, 0, len(agents))
+	for _, a := range agents {
+		if a.TeamID == "" || a.TeamID == teamID {
+			filtered = append(filtered, a)
+		}
+	}
+	return filtered
 }
 
 // agentSlug returns the slug for an agent, deriving from name if empty.

@@ -14,6 +14,11 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
+const (
+	labelTeamID       = "recif.dev/team-id"
+	annotationAgentID = "recif.dev/agent-id"
+)
+
 // K8sRepository implements Repository using Kubernetes Agent CRDs as the source of truth.
 type K8sRepository struct {
 	client    dynamic.Interface
@@ -52,7 +57,7 @@ func (r *K8sRepository) Get(ctx context.Context, id string) (*Agent, error) {
 			return nil, fmt.Errorf("list agents: %w", listErr)
 		}
 		for i := range list.Items {
-			if list.Items[i].GetAnnotations()["recif.dev/agent-id"] == id {
+			if list.Items[i].GetAnnotations()[annotationAgentID] == id {
 				return agentFromCRD(&list.Items[i]), nil
 			}
 		}
@@ -75,35 +80,18 @@ func (r *K8sRepository) GetBySlug(ctx context.Context, teamID, slug string) (*Ag
 func (r *K8sRepository) ListByTeam(ctx context.Context, teamID string, limit, offset int32) ([]Agent, error) {
 	opts := metav1.ListOptions{}
 	if teamID != "" {
-		opts.LabelSelector = "recif.dev/team-id=" + teamID
+		opts.LabelSelector = labelTeamID + "=" + teamID
 	}
-	list, err := r.client.Resource(agentGVR).Namespace(r.namespace).List(ctx, opts)
-	if err != nil {
-		return nil, fmt.Errorf("list agents by team: %w", err)
-	}
-
-	agents := make([]Agent, 0, len(list.Items))
-	for i := range list.Items {
-		agents = append(agents, *agentFromCRD(&list.Items[i]))
-	}
-
-	if int(offset) >= len(agents) {
-		return []Agent{}, nil
-	}
-	agents = agents[offset:]
-	if int(limit) > 0 && int(limit) < len(agents) {
-		agents = agents[:limit]
-	}
-	return agents, nil
+	return r.listWithOpts(ctx, r.namespace, opts, limit, offset)
 }
 
 // ListAll lists agents across the default namespace.
 func (r *K8sRepository) ListAll(ctx context.Context, limit, offset int32) ([]Agent, error) {
-	return r.listInNamespace(ctx, r.namespace, limit, offset)
+	return r.listWithOpts(ctx, r.namespace, metav1.ListOptions{}, limit, offset)
 }
 
-func (r *K8sRepository) listInNamespace(ctx context.Context, ns string, limit, offset int32) ([]Agent, error) {
-	list, err := r.client.Resource(agentGVR).Namespace(ns).List(ctx, metav1.ListOptions{})
+func (r *K8sRepository) listWithOpts(ctx context.Context, ns string, opts metav1.ListOptions, limit, offset int32) ([]Agent, error) {
+	list, err := r.client.Resource(agentGVR).Namespace(ns).List(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("list agents: %w", err)
 	}
@@ -113,21 +101,12 @@ func (r *K8sRepository) listInNamespace(ctx context.Context, ns string, limit, o
 		agents = append(agents, *agentFromCRD(&list.Items[i]))
 	}
 
-	// Client-side pagination (K8s List doesn't support offset)
-	if int(offset) >= len(agents) {
-		return []Agent{}, nil
-	}
-	agents = agents[offset:]
-	if int(limit) > 0 && int(limit) < len(agents) {
-		agents = agents[:limit]
-	}
-
-	return agents, nil
+	return paginate(agents, limit, offset), nil
 }
 
 // Search filters agents by name/description substring match.
 func (r *K8sRepository) Search(ctx context.Context, query string, limit, offset int32) ([]Agent, error) {
-	all, err := r.ListAll(ctx, 0, 0) // get all, filter client-side
+	all, err := r.ListAll(ctx, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -140,15 +119,19 @@ func (r *K8sRepository) Search(ctx context.Context, query string, limit, offset 
 		}
 	}
 
-	if int(offset) >= len(matched) {
-		return []Agent{}, nil
-	}
-	matched = matched[offset:]
-	if int(limit) > 0 && int(limit) < len(matched) {
-		matched = matched[:limit]
-	}
+	return paginate(matched, limit, offset), nil
+}
 
-	return matched, nil
+// paginate applies client-side offset/limit to a slice (K8s List doesn't support offset).
+func paginate(items []Agent, limit, offset int32) []Agent {
+	if int(offset) >= len(items) {
+		return []Agent{}
+	}
+	items = items[offset:]
+	if limit > 0 && int(limit) < len(items) {
+		items = items[:limit]
+	}
+	return items
 }
 
 // Create creates a new Agent CRD.
@@ -200,15 +183,15 @@ func (r *K8sRepository) Create(ctx context.Context, params CreateParams) (*Agent
 
 	annotations := map[string]interface{}{}
 	if params.ID != "" {
-		annotations["recif.dev/agent-id"] = params.ID
+		annotations[annotationAgentID] = params.ID
 	}
 	if params.TeamID != "" {
-		annotations["recif.dev/team-id"] = params.TeamID
+		annotations[labelTeamID] = params.TeamID
 	}
 
 	labels := map[string]interface{}{}
 	if params.TeamID != "" {
-		labels["recif.dev/team-id"] = params.TeamID
+		labels[labelTeamID] = params.TeamID
 	}
 
 	obj := &unstructured.Unstructured{
@@ -360,10 +343,10 @@ func agentFromCRD(crd *unstructured.Unstructured) *Agent {
 	}
 
 	// Override ID with legacy annotation if present
-	if legacyID, ok := annotations["recif.dev/agent-id"]; ok && legacyID != "" {
+	if legacyID, ok := annotations[annotationAgentID]; ok && legacyID != "" {
 		a.ID = legacyID
 	}
-	if teamID, ok := annotations["recif.dev/team-id"]; ok {
+	if teamID, ok := annotations[labelTeamID]; ok {
 		a.TeamID = teamID
 	}
 

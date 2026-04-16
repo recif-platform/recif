@@ -12,7 +12,6 @@ import (
 const (
 	defaultNamespace = "team-default"
 	defaultUserID    = "us_DEV00000000000000000000"
-	defaultRole      = "admin"
 )
 
 // Auth creates middleware that validates JWT tokens via the given AuthProvider.
@@ -42,7 +41,7 @@ func Auth(provider auth.AuthProvider, authEnabled bool) func(http.Handler) http.
 				ctx := auth.SetClaims(r.Context(), &auth.Claims{
 					UserID: defaultUserID,
 					TeamID: auth.DefaultTeamID,
-					Role:   defaultRole,
+					Role:   auth.RoleAdmin,
 				})
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
@@ -76,7 +75,7 @@ func NamespaceFromContext(ctx context.Context) string {
 // IsPlatformAdmin checks if the user has platform-wide admin role.
 func IsPlatformAdmin(ctx context.Context) bool {
 	if claims := auth.GetClaims(ctx); claims != nil {
-		return claims.Role == "platform_admin"
+		return claims.Role == auth.RolePlatformAdmin
 	}
 	return false
 }

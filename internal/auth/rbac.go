@@ -2,6 +2,19 @@ package auth
 
 import "fmt"
 
+// Role constants.
+const (
+	RoleAdmin         = "admin"
+	RolePlatformAdmin = "platform_admin"
+	RoleDeveloper     = "developer"
+	RoleViewer        = "viewer"
+)
+
+// IsAdmin returns true for admin or platform_admin roles.
+func IsAdmin(claims *Claims) bool {
+	return claims != nil && (claims.Role == RoleAdmin || claims.Role == RolePlatformAdmin)
+}
+
 // Permission represents an action that can be performed.
 type Permission string
 
@@ -16,10 +29,10 @@ const (
 
 // rolePermissions maps roles to their allowed permissions.
 var rolePermissions = map[string][]Permission{
-	"platform_admin": {PermAdminAll, PermAgentsRead, PermAgentsWrite, PermAgentsDeploy, PermEvalRun, PermTeamsManage},
-	"admin":          {PermAgentsRead, PermAgentsWrite, PermAgentsDeploy, PermEvalRun, PermTeamsManage},
-	"developer":      {PermAgentsRead, PermAgentsWrite, PermAgentsDeploy, PermEvalRun},
-	"viewer":         {PermAgentsRead},
+	RolePlatformAdmin: {PermAdminAll, PermAgentsRead, PermAgentsWrite, PermAgentsDeploy, PermEvalRun, PermTeamsManage},
+	RoleAdmin:         {PermAgentsRead, PermAgentsWrite, PermAgentsDeploy, PermEvalRun, PermTeamsManage},
+	RoleDeveloper:     {PermAgentsRead, PermAgentsWrite, PermAgentsDeploy, PermEvalRun},
+	RoleViewer:        {PermAgentsRead},
 }
 
 // HasPermission checks if a role has a specific permission. Deny-by-default.

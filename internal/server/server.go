@@ -106,8 +106,7 @@ func New(cfg config.Config, logger *slog.Logger, agentRepo agent.Repository, kbS
 		userRepo := user.NewRepository(db.New(dbPool))
 		authH = auth.NewHandler(userRepo, jwtProvider, logger)
 		userH = user.NewHandler(userRepo, logger, func(ctx context.Context) bool {
-			claims := auth.GetClaims(ctx)
-			return claims != nil && (claims.Role == "admin" || claims.Role == "platform_admin")
+			return auth.IsAdmin(auth.GetClaims(ctx))
 		})
 	}
 	platformHandler := platform.NewHandler(dbPool, cfg, logger)
