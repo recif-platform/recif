@@ -10,8 +10,11 @@ import {
   addTeamMember,
   removeTeamMember,
   updateMemberRole,
+  fetchUsers,
+  createUser,
   type Team,
   type TeamMember,
+  type CurrentUser,
 } from "@/lib/api";
 import { useCurrentUser } from "@/lib/current-user";
 
@@ -36,15 +39,16 @@ function RoleBadge({ role }: { role: string }) {
 }
 
 function TeamMembersPanel({
-  teamId, colors, onMemberChange,
+  teamId, colors, onMemberChange, allUsers,
 }: {
   teamId: string;
   colors: ReturnType<typeof useTheme>["colors"];
   onMemberChange: () => void;
+  allUsers: CurrentUser[];
 }) {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newEmail, setNewEmail] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState("");
   const [newRole, setNewRole] = useState("developer");
   const [error, setError] = useState("");
 
@@ -59,12 +63,13 @@ function TeamMembersPanel({
   useEffect(() => { loadMembers(); }, [loadMembers]);
 
   const handleAdd = async () => {
-    const email = newEmail.trim();
-    if (!email) return;
+    if (!selectedUserId) return;
+    const user = allUsers.find((u) => u.id === selectedUserId);
+    if (!user) return;
     setError("");
     try {
-      await addTeamMember(teamId, email, newRole);
-      setNewEmail("");
+      await addTeamMember(teamId, user.email, newRole);
+      setSelectedUserId("");
       setNewRole("developer");
       await loadMembers();
       onMemberChange();
@@ -72,6 +77,11 @@ function TeamMembersPanel({
       setError(err instanceof Error ? err.message : "Failed to add member");
     }
   };
+
+  // Users not already in this team
+  const availableUsers = allUsers.filter(
+    (u) => !members.some((m) => m.user_id === u.id)
+  );
 
   const handleRemove = async (userId: string) => {
     try {
@@ -154,16 +164,17 @@ function TeamMembersPanel({
       )}
 
       <div className="flex gap-2" style={{ marginTop: "12px" }}>
-        <input
-          value={newEmail}
-          onChange={(e) => setNewEmail(e.target.value)}
-          placeholder="user@example.com"
+        <select
+          value={selectedUserId}
+          onChange={(e) => setSelectedUserId(e.target.value)}
           className="flex-1 rounded-xl text-sm outline-none"
           style={{ padding: "8px 14px", background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.textPrimary }}
-          onFocus={(e) => { e.currentTarget.style.borderColor = colors.cardHoverBorder; }}
-          onBlur={(e) => { e.currentTarget.style.borderColor = colors.inputBorder; }}
-          onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
-        />
+        >
+          <option value="">Select a user...</option>
+          {availableUsers.map((u) => (
+            <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+          ))}
+        </select>
         <select
           value={newRole}
           onChange={(e) => setNewRole(e.target.value)}
@@ -176,7 +187,7 @@ function TeamMembersPanel({
           <option value="developer">Developer</option>
           <option value="viewer">Viewer</option>
         </select>
-        <button onClick={handleAdd} className="btn-reef-primary" style={{ padding: "8px 16px", fontSize: "13px", whiteSpace: "nowrap" }}>
+        <button onClick={handleAdd} disabled={!selectedUserId} className="btn-reef-primary" style={{ padding: "8px 16px", fontSize: "13px", whiteSpace: "nowrap", opacity: selectedUserId ? 1 : 0.5 }}>
           Add Member
         </button>
       </div>
@@ -190,6 +201,12 @@ export default function TeamsPage() {
   const [newTeamName, setNewTeamName] = useState("");
   const [newTeamDesc, setNewTeamDesc] = useState("");
   const [loading, setLoading] = useState(true);
+  const [allUsers, setAllUsers] = useState<CurrentUser[]>([]);
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserRole, setNewUserRole] = useState("developer");
+  const [userError, setUserError] = useState("");
   const currentUser = useCurrentUser();
   const { colors } = useTheme();
 
@@ -199,7 +216,29 @@ export default function TeamsPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { loadTeams(); }, [loadTeams]);
+  const loadUsers = useCallback(async () => {
+    try { setAllUsers(await fetchUsers()); }
+    catch { setAllUsers([]); }
+  }, []);
+
+  useEffect(() => { loadTeams(); loadUsers(); }, [loadTeams, loadUsers]);
+
+  const handleCreateUser = async () => {
+    setUserError("");
+    const email = newUserEmail.trim();
+    const name = newUserName.trim();
+    if (!email || !name || newUserPassword.length < 8) {
+      setUserError("Email, name, and password (8+ chars) are required");
+      return;
+    }
+    try {
+      await createUser(email, name, newUserPassword, newUserRole);
+      setNewUserEmail(""); setNewUserName(""); setNewUserPassword(""); setNewUserRole("developer");
+      await loadUsers();
+    } catch (err) {
+      setUserError(err instanceof Error ? err.message : "Failed to create user");
+    }
+  };
 
   const handleCreateTeam = async () => {
     const name = newTeamName.trim();
@@ -246,6 +285,57 @@ export default function TeamsPage() {
           <RoleBadge role={currentUser.role} />
         </div>
       )}
+
+      {/* Users section */}
+      <div className="reef-glass" style={{ padding: "16px 20px" }}>
+        <div className="flex items-center justify-between" style={{ marginBottom: "12px" }}>
+          <h3 style={{ color: colors.textPrimary, fontWeight: 700, fontSize: 15 }}>
+            Platform Users ({allUsers.length})
+          </h3>
+        </div>
+
+        {allUsers.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "12px" }}>
+            {allUsers.map((u) => (
+              <div key={u.id} style={{
+                padding: "6px 12px", borderRadius: "10px", fontSize: "13px",
+                background: colors.badgeBg, border: `1px solid ${colors.accentBorder}`,
+                display: "flex", alignItems: "center", gap: "8px",
+              }}>
+                <span style={{ color: colors.textPrimary, fontWeight: 500 }}>{u.name}</span>
+                <span style={{ color: colors.textMuted, fontSize: "12px" }}>{u.email}</span>
+                <RoleBadge role={u.role} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p style={{ color: colors.textMuted, fontSize: 12, fontWeight: 500, marginBottom: "8px" }}>Create New User</p>
+        {userError && (
+          <div style={{ marginBottom: "8px", padding: "8px 12px", borderRadius: "8px", background: "rgba(239,68,68,0.1)", color: "#ef4444", fontSize: "13px" }}>
+            {userError}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} placeholder="Email"
+            className="flex-1 rounded-xl text-sm outline-none"
+            style={{ padding: "8px 14px", background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.textPrimary }} />
+          <input value={newUserName} onChange={(e) => setNewUserName(e.target.value)} placeholder="Name"
+            className="flex-1 rounded-xl text-sm outline-none"
+            style={{ padding: "8px 14px", background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.textPrimary }} />
+          <input value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} placeholder="Password" type="password"
+            className="rounded-xl text-sm outline-none" style={{ width: "140px", padding: "8px 14px", background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.textPrimary }} />
+          <select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)}
+            style={{ background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, borderRadius: "12px", padding: "8px 12px", color: colors.textPrimary, fontSize: "13px" }}>
+            <option value="admin">Admin</option>
+            <option value="developer">Developer</option>
+            <option value="viewer">Viewer</option>
+          </select>
+          <button onClick={handleCreateUser} className="btn-reef-primary" style={{ padding: "8px 16px", fontSize: "13px", whiteSpace: "nowrap" }}>
+            Create
+          </button>
+        </div>
+      </div>
 
       {/* Teams list */}
       <div className="space-y-3">
@@ -306,7 +396,7 @@ export default function TeamsPage() {
               </div>
 
               {expandedTeam === team.id && (
-                <TeamMembersPanel teamId={team.id} colors={colors} onMemberChange={loadTeams} />
+                <TeamMembersPanel teamId={team.id} colors={colors} onMemberChange={loadTeams} allUsers={allUsers} />
               )}
             </div>
           ))

@@ -51,6 +51,27 @@ export async function fetchCurrentUser(): Promise<CurrentUser> {
   return res.json();
 }
 
+export async function fetchUsers(): Promise<CurrentUser[]> {
+  const res = await apiFetch("/api/v1/users");
+  if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`);
+  const json = await res.json();
+  return json.data || [];
+}
+
+export async function createUser(email: string, name: string, password: string, role: string): Promise<CurrentUser> {
+  const res = await apiFetch("/api/v1/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, name, password, role }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || err.error || `Failed to create user: ${res.status}`);
+  }
+  const json = await res.json();
+  return json.data;
+}
+
 export interface Agent {
   id: string;
   name: string;

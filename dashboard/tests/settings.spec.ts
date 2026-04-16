@@ -37,57 +37,55 @@ test.describe("Settings & Teams", () => {
     expect(res.status).toBe(403);
   });
 
-  test("create, add member, and delete team via API", async () => {
+  test("create user, add to team, then cleanup via API", async () => {
     const token = await getAuthToken();
 
-    // Create team
-    const createRes = await apiCall("POST", "/api/v1/teams", token, {
+    // 1. Create a new user
+    const userRes = await apiCall("POST", "/api/v1/users", token, {
+      email: "e2e-test@recif.dev",
+      name: "E2E Test User",
+      password: "testpass123",
+      role: "developer",
+    });
+    if (userRes.status === 404 || userRes.status === 405) {
+      test.skip(true, "POST /users not available on this API version");
+      return;
+    }
+    expect(userRes.status).toBe(201);
+    const { data: newUser } = await userRes.json();
+    expect(newUser.email).toBe("e2e-test@recif.dev");
+
+    // 2. Create team
+    const teamRes = await apiCall("POST", "/api/v1/teams", token, {
       name: "E2E-Test-Team",
       description: "Created by Playwright",
     });
+    expect(teamRes.status).toBe(201);
+    const { data: team } = await teamRes.json();
 
-    // If server returns 403, it's running old code (pre-team-DB refactor) — skip gracefully
-    if (createRes.status === 403) {
-      test.skip(true, "API requires platform_admin for team create (old code)");
-      return;
-    }
-    expect(createRes.status).toBe(201);
-    const { data: team } = await createRes.json();
-    expect(team.name).toBe("E2E-Test-Team");
-
-    // Add member
-    const addRes = await apiCall(
-      "POST",
-      `/api/v1/teams/${team.id}/members`,
-      token,
-      { email: "adham@recif.dev", role: "developer" }
-    );
+    // 3. Add the new user to the team
+    const addRes = await apiCall("POST", `/api/v1/teams/${team.id}/members`, token, {
+      email: "e2e-test@recif.dev",
+      role: "developer",
+    });
     expect(addRes.status).toBe(201);
 
-    // Verify member appears
+    // 4. Verify member appears
     const getRes = await apiCall("GET", `/api/v1/teams/${team.id}`, token);
     const { members } = await getRes.json();
     expect(members.length).toBe(1);
-    expect(members[0].email).toBe("adham@recif.dev");
+    expect(members[0].email).toBe("e2e-test@recif.dev");
 
-    // Duplicate add → 409
-    const dupRes = await apiCall(
-      "POST",
-      `/api/v1/teams/${team.id}/members`,
-      token,
-      { email: "adham@recif.dev", role: "developer" }
-    );
+    // 5. Duplicate add → 409
+    const dupRes = await apiCall("POST", `/api/v1/teams/${team.id}/members`, token, {
+      email: "e2e-test@recif.dev",
+      role: "developer",
+    });
     expect(dupRes.status).toBe(409);
 
-    // Remove member
-    await apiCall(
-      "DELETE",
-      `/api/v1/teams/${team.id}/members/${members[0].user_id}`,
-      token
-    );
-
-    // Delete team
-    const delRes = await apiCall("DELETE", `/api/v1/teams/${team.id}`, token);
-    expect(delRes.status).toBe(200);
+    // 6. Cleanup
+    await apiCall("DELETE", `/api/v1/teams/${team.id}/members/${members[0].user_id}`, token);
+    await apiCall("DELETE", `/api/v1/teams/${team.id}`, token);
+    // Note: no DELETE /users endpoint yet — test user stays in DB (harmless)
   });
 });

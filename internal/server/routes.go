@@ -45,6 +45,7 @@ func (s *Server) routes() http.Handler {
 			// Users (admin)
 			if s.userHandler != nil {
 				r.Get("/users", s.userHandler.List)
+				r.Post("/users", s.userHandler.Create)
 			}
 
 			// Agent CRUD
