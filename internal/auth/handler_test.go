@@ -76,6 +76,12 @@ func (f *fakeUserManager) UpdateProfile(_ context.Context, id, name, email strin
 	return nil, errFakeNotFound
 }
 
+func (f *fakeUserManager) Create(_ context.Context, id, email, name, role, plain string) (*user.User, error) {
+	hash, _ := bcrypt.GenerateFromPassword([]byte(plain), bcrypt.MinCost)
+	f.users[email] = &fakeUserEntry{id: id, name: name, role: role, hash: string(hash)}
+	return &user.User{ID: id, Email: email, Name: name, Role: role}, nil
+}
+
 func (f *fakeUserManager) UpdatePassword(_ context.Context, id, plain string) error {
 	for _, u := range f.users {
 		if u.id == id {

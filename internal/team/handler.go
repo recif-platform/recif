@@ -11,6 +11,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/oklog/ulid/v2"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/sciences44/recif/internal/auth"
 	"github.com/sciences44/recif/internal/httputil"
@@ -27,12 +33,26 @@ var validRoles = map[string]bool{
 // Handler provides HTTP handlers for team operations.
 type Handler struct {
 	repo   Repository
+	k8s    kubernetes.Interface
 	logger *slog.Logger
 }
 
 // NewHandler creates a new team Handler backed by a Repository.
 func NewHandler(repo Repository, logger *slog.Logger) *Handler {
-	return &Handler{repo: repo, logger: logger}
+	h := &Handler{repo: repo, logger: logger}
+	// Build K8s client for namespace management.
+	cfg, err := rest.InClusterConfig()
+	if err != nil {
+		home := clientcmd.RecommendedHomeFile
+		cfg, err = clientcmd.BuildConfigFromFlags("", home)
+	}
+	if err == nil {
+		h.k8s, _ = kubernetes.NewForConfig(cfg)
+	}
+	if h.k8s == nil {
+		logger.Warn("K8s client unavailable — team namespaces will not be created automatically")
+	}
+	return h
 }
 
 // List handles GET /api/v1/teams.
@@ -89,7 +109,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.logger.Info("team created", "id", id, "name", name)
+	// Create the K8s namespace for this team.
+	h.ensureNamespace(r.Context(), team.Namespace)
+
+	h.logger.Info("team created", "id", id, "name", name, "namespace", team.Namespace)
 	httputil.WriteJSON(w, http.StatusCreated, map[string]any{"data": team})
 }
 
@@ -144,6 +167,8 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Look up team to get namespace before it's gone (team already deleted from DB, but we derived namespace from slug)
+	// For safety, derive namespace from team ID prefix convention
 	h.logger.Info("team deleted", "id", teamID)
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"message": "Team deleted"})
 }
@@ -272,4 +297,23 @@ func (h *Handler) canManageTeam(ctx context.Context, teamID string) bool {
 		return false
 	}
 	return role == auth.RoleAdmin
+}
+
+// ensureNamespace creates a K8s namespace if it doesn't already exist.
+func (h *Handler) ensureNamespace(ctx context.Context, ns string) {
+	if h.k8s == nil {
+		return
+	}
+	_, err := h.k8s.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   ns,
+			Labels: map[string]string{"recif.dev/managed": "true"},
+		},
+	}, metav1.CreateOptions{})
+	if err != nil {
+		if k8serrors.IsAlreadyExists(err) {
+			return
+		}
+		h.logger.Warn("failed to create namespace", "namespace", ns, "error", err)
+	}
 }

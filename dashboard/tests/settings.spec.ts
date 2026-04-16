@@ -63,7 +63,10 @@ test.describe("Settings & Teams", () => {
     expect(teamRes.status).toBe(201);
     const { data: team } = await teamRes.json();
 
-    // 3. Add the new user to the team
+    // 3. Verify the team has a namespace field
+    expect(team.namespace).toBe("team-e2e-test-team");
+
+    // 4. Add the new user to the team
     const addRes = await apiCall("POST", `/api/v1/teams/${team.id}/members`, token, {
       email: "e2e-test@recif.dev",
       role: "developer",
