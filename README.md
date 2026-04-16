@@ -23,36 +23,52 @@ Recif is the governance and orchestration layer of the [Recif platform](https://
 
 ## Quick Start
 
-### Kubernetes (Kind)
+### Kubernetes (Helm)
 
 ```bash
-# Prerequisites: Docker, Kind, Helm, kubectl
+# Prerequisites: Kubernetes cluster, Helm 3, kubectl
 
-cd deploy/kind && ./setup.sh
+# Add the Helm chart
+helm install recif charts/recif/ -n recif-system --create-namespace
 
+# Set up admin credentials
+kubectl create secret generic recif-api-secrets -n recif-system \
+  --from-literal=JWT_SECRET="$(openssl rand -base64 32)" \
+  --from-literal=ADMIN_EMAIL="you@example.com" \
+  --from-literal=ADMIN_PASSWORD="your-password" \
+  --from-literal=ADMIN_NAME="Your Name"
+
+# Enable authentication
+kubectl set env deployment/recif-api AUTH_ENABLED=true -n recif-system
+
+# Access the platform
 kubectl port-forward svc/recif-api 8080:8080 -n recif-system &
 kubectl port-forward svc/recif-dashboard 3000:3000 -n recif-system &
 
-curl http://localhost:8080/healthz
-# {"status":"ok"}
+# Open http://localhost:3000 and login
 ```
+
+See the [Helm chart docs](https://github.com/recif-platform/helm-charts) for full configuration (Ollama, Vertex AI, MLflow, etc.).
 
 ### Local Development
 
 ```bash
-# Prerequisites: Go 1.22+, PostgreSQL, Node.js 20+
+# Prerequisites: Go 1.26+, PostgreSQL, Node.js 22+
 
-cp .env.example .env    # Edit with your DB credentials
-make migrate-up
-make dev                # API on :8080
+# API
+DATABASE_URL="postgres://recif:recif_dev@localhost:5432/recif?sslmode=disable" \
+  go run ./cmd/api/...
 
-cd dashboard && npm install && npm run dev   # Dashboard on :3000
+# Dashboard (separate terminal)
+cd dashboard && npm install && npm run dev
 ```
 
 ### Docker
 
 ```bash
-docker build -t recif-api .
+# Build from the repo root (needs both recif/ and maree/ directories)
+docker build -f Dockerfile -t recif-api ..
+
 docker run -p 8080:8080 \
   -e DATABASE_URL="postgres://recif:recif_dev@host.docker.internal:5432/recif?sslmode=disable" \
   recif-api
