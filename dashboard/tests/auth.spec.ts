@@ -20,7 +20,7 @@ test.describe("Authentication", () => {
 
   test("sign out clears session and redirects to login", async ({ page }) => {
     await page.goto("/agents");
-    await page.getByTestId("user-avatar").click();
+    await page.getByTestId("logout-btn").click();
     await expect(page).toHaveURL(/\/login/);
   });
 });

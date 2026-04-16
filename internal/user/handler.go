@@ -80,8 +80,13 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteError(w, http.StatusBadRequest, "Bad Request", "Password must be at least 8 characters", r.URL.Path)
 		return
 	}
+	validRoles := map[string]bool{"admin": true, "developer": true, "viewer": true}
 	if role == "" {
 		role = "developer"
+	}
+	if !validRoles[role] {
+		httputil.WriteError(w, http.StatusBadRequest, "Bad Request", "Role must be admin, developer, or viewer", r.URL.Path)
+		return
 	}
 
 	id := fmt.Sprintf("us_%s", ulid.Make().String())

@@ -150,9 +150,7 @@ function UserAvatar() {
           flexShrink: 0,
           cursor: "pointer",
         }}
-        title="Sign out"
         data-testid="user-avatar"
-        onClick={() => { clearToken(); window.location.href = "/login"; }}
       >
         {initial}
       </div>
@@ -185,6 +183,30 @@ function UserAvatar() {
           <span style={{ fontSize: 12, color: colors.textMuted }}>{user.email}</span>
         )}
       </div>
+      <button
+        data-testid="logout-btn"
+        onClick={() => { clearToken(); window.location.href = "/login"; }}
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: colors.textMuted,
+          padding: 4,
+          borderRadius: 6,
+          display: "flex",
+          alignItems: "center",
+          transition: "color 0.2s",
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = "#ef4444"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = colors.textMuted; }}
+        title="Sign out"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+      </button>
     </div>
   );
 }
