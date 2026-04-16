@@ -124,7 +124,7 @@ export interface K8sEvent {
 }
 
 export async function fetchAgentEvents(agentId: string): Promise<K8sEvent[]> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/events`);
+  const res = await apiFetch(`/api/v1/agents/${agentId}/events`);
   if (!res.ok) return [];
   const json = await res.json();
   return json.data || [];
@@ -157,13 +157,13 @@ export interface MemoryStatus {
 }
 
 export async function fetchMemoryStatus(agentSlug: string): Promise<MemoryStatus> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentSlug}/memory/status`);
+  const res = await apiFetch(`/api/v1/agents/${agentSlug}/memory/status`);
   if (!res.ok) throw new Error(`Failed to fetch memory status: ${res.status}`);
   return res.json();
 }
 
 export async function fetchMemories(agentSlug: string, limit = 50): Promise<MemoryEntry[]> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentSlug}/memory?limit=${limit}`);
+  const res = await apiFetch(`/api/v1/agents/${agentSlug}/memory?limit=${limit}`);
   if (!res.ok) throw new Error(`Failed to fetch memories: ${res.status}`);
   const json = await res.json();
   return json.memories || [];
@@ -175,7 +175,7 @@ export async function storeMemory(
   category: string,
   source = "manual",
 ): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentSlug}/memory`, {
+  const res = await apiFetch(`/api/v1/agents/${agentSlug}/memory`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content, category, source }),
@@ -188,7 +188,7 @@ export async function searchMemories(
   query: string,
   topK = 10,
 ): Promise<MemoryEntry[]> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentSlug}/memory/search`, {
+  const res = await apiFetch(`/api/v1/agents/${agentSlug}/memory/search`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, top_k: topK }),
@@ -199,7 +199,7 @@ export async function searchMemories(
 }
 
 export async function deleteMemory(agentSlug: string, entryId: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentSlug}/memory/${entryId}`, {
+  const res = await apiFetch(`/api/v1/agents/${agentSlug}/memory/${entryId}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(`Failed to delete memory: ${res.status}`);
@@ -245,21 +245,21 @@ export interface CreateIntegrationParams {
 }
 
 export async function fetchIntegrations(): Promise<Integration[]> {
-  const res = await fetch(`${API_URL}/api/v1/integrations`);
+  const res = await apiFetch(`/api/v1/integrations`);
   if (!res.ok) throw new Error(`Failed to fetch integrations: ${res.status}`);
   const json = await res.json();
   return json.data || [];
 }
 
 export async function fetchIntegrationTypes(): Promise<IntegrationType[]> {
-  const res = await fetch(`${API_URL}/api/v1/integrations/types`);
+  const res = await apiFetch(`/api/v1/integrations/types`);
   if (!res.ok) throw new Error(`Failed to fetch integration types: ${res.status}`);
   const json = await res.json();
   return json.data || [];
 }
 
 export async function createIntegration(params: CreateIntegrationParams): Promise<Integration> {
-  const res = await fetch(`${API_URL}/api/v1/integrations`, {
+  const res = await apiFetch(`/api/v1/integrations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
@@ -270,14 +270,14 @@ export async function createIntegration(params: CreateIntegrationParams): Promis
 }
 
 export async function deleteIntegration(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/integrations/${id}`, {
+  const res = await apiFetch(`/api/v1/integrations/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(`Failed to delete integration: ${res.status}`);
 }
 
 export async function testIntegration(id: string): Promise<{ status: string; message: string }> {
-  const res = await fetch(`${API_URL}/api/v1/integrations/${id}/test`, {
+  const res = await apiFetch(`/api/v1/integrations/${id}/test`, {
     method: "POST",
   });
   if (!res.ok) throw new Error(`Failed to test integration: ${res.status}`);
@@ -309,7 +309,7 @@ export interface Skill {
 }
 
 export async function fetchSkills(): Promise<Skill[]> {
-  const res = await fetch(`${API_URL}/api/v1/skills`);
+  const res = await apiFetch(`/api/v1/skills`);
   if (!res.ok) throw new Error(`Failed to fetch skills: ${res.status}`);
   const json = await res.json();
   return json.data || [];
@@ -318,7 +318,7 @@ export async function fetchSkills(): Promise<Skill[]> {
 export async function createSkill(
   skill: Omit<Skill, "id" | "builtin" | "created_at">,
 ): Promise<Skill> {
-  const res = await fetch(`${API_URL}/api/v1/skills`, {
+  const res = await apiFetch(`/api/v1/skills`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(skill),
@@ -332,7 +332,7 @@ export async function updateSkill(
   id: string,
   skill: Partial<Omit<Skill, "id" | "builtin" | "created_at">>,
 ): Promise<Skill> {
-  const res = await fetch(`${API_URL}/api/v1/skills/${id}`, {
+  const res = await apiFetch(`/api/v1/skills/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(skill),
@@ -343,7 +343,7 @@ export async function updateSkill(
 }
 
 export async function deleteSkill(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/skills/${id}`, {
+  const res = await apiFetch(`/api/v1/skills/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(`Failed to delete skill: ${res.status}`);
@@ -353,7 +353,7 @@ export async function importSkill(
   source: string,
   token?: string,
 ): Promise<Skill> {
-  const res = await fetch(`${API_URL}/api/v1/skills/import`, {
+  const res = await apiFetch(`/api/v1/skills/import`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ source, token: token || "" }),
@@ -408,28 +408,28 @@ export interface GuardrailPolicy {
 }
 
 export async function fetchScorecards(): Promise<Scorecard[]> {
-  const res = await fetch(`${API_URL}/api/v1/governance/scorecards`);
+  const res = await apiFetch(`/api/v1/governance/scorecards`);
   if (!res.ok) throw new Error(`Failed to fetch scorecards: ${res.status}`);
   const json = await res.json();
   return json.data || [];
 }
 
 export async function fetchScorecard(agentId: string): Promise<Scorecard> {
-  const res = await fetch(`${API_URL}/api/v1/governance/scorecards/${agentId}`);
+  const res = await apiFetch(`/api/v1/governance/scorecards/${agentId}`);
   if (!res.ok) throw new Error(`Failed to fetch scorecard: ${res.status}`);
   const json = await res.json();
   return json.data;
 }
 
 export async function fetchPolicies(): Promise<GuardrailPolicy[]> {
-  const res = await fetch(`${API_URL}/api/v1/governance/policies`);
+  const res = await apiFetch(`/api/v1/governance/policies`);
   if (!res.ok) throw new Error(`Failed to fetch policies: ${res.status}`);
   const json = await res.json();
   return json.data || [];
 }
 
 export async function createPolicy(policy: Omit<GuardrailPolicy, "id">): Promise<GuardrailPolicy> {
-  const res = await fetch(`${API_URL}/api/v1/governance/policies`, {
+  const res = await apiFetch(`/api/v1/governance/policies`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(policy),
@@ -440,7 +440,7 @@ export async function createPolicy(policy: Omit<GuardrailPolicy, "id">): Promise
 }
 
 export async function deletePolicy(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/governance/policies/${id}`, {
+  const res = await apiFetch(`/api/v1/governance/policies/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(`Failed to delete policy: ${res.status}`);
@@ -467,14 +467,14 @@ export interface ReleaseDiff {
 }
 
 export async function fetchReleases(agentId: string): Promise<Release[]> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/releases`);
+  const res = await apiFetch(`/api/v1/agents/${agentId}/releases`);
   if (!res.ok) throw new Error(`Failed to fetch releases: ${res.status}`);
   const json = await res.json();
   return json.data || [];
 }
 
 export async function createRelease(agentId: string, changelog: string): Promise<Release> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/releases`, {
+  const res = await apiFetch(`/api/v1/agents/${agentId}/releases`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ changelog }),
@@ -485,21 +485,21 @@ export async function createRelease(agentId: string, changelog: string): Promise
 }
 
 export async function getRelease(agentId: string, version: number): Promise<Release> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/releases/${version}`);
+  const res = await apiFetch(`/api/v1/agents/${agentId}/releases/${version}`);
   if (!res.ok) throw new Error(`Failed to get release: ${res.status}`);
   const json = await res.json();
   return json.data;
 }
 
 export async function deployRelease(agentId: string, version: number): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/releases/${version}/deploy`, {
+  const res = await apiFetch(`/api/v1/agents/${agentId}/releases/${version}/deploy`, {
     method: "POST",
   });
   if (!res.ok) throw new Error(`Failed to deploy release: ${res.status}`);
 }
 
 export async function diffReleases(agentId: string, from: number, to: number): Promise<ReleaseDiff[]> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/releases/diff?from=${from}&to=${to}`);
+  const res = await apiFetch(`/api/v1/agents/${agentId}/releases/diff?from=${from}&to=${to}`);
   if (!res.ok) throw new Error(`Failed to diff releases: ${res.status}`);
   const json = await res.json();
   return json.data || [];
@@ -523,7 +523,7 @@ export async function startCanary(
   challengerVersion: number,
   weight: number = 10,
 ): Promise<CanaryStatus> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/canary`, {
+  const res = await apiFetch(`/api/v1/agents/${agentId}/canary`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ challenger_version: challengerVersion, weight }),
@@ -537,7 +537,7 @@ export async function adjustCanaryWeight(
   agentId: string,
   weight: number,
 ): Promise<CanaryStatus> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/canary`, {
+  const res = await apiFetch(`/api/v1/agents/${agentId}/canary`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ weight }),
@@ -548,21 +548,21 @@ export async function adjustCanaryWeight(
 }
 
 export async function getCanaryStatus(agentId: string): Promise<CanaryStatus> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/canary`);
+  const res = await apiFetch(`/api/v1/agents/${agentId}/canary`);
   if (!res.ok) throw new Error(`Failed to get canary status: ${res.status}`);
   const json = await res.json();
   return json.data;
 }
 
 export async function promoteCanary(agentId: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/canary/promote`, {
+  const res = await apiFetch(`/api/v1/agents/${agentId}/canary/promote`, {
     method: "POST",
   });
   if (!res.ok) throw new Error(`Failed to promote canary: ${res.status}`);
 }
 
 export async function rollbackCanary(agentId: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/canary/rollback`, {
+  const res = await apiFetch(`/api/v1/agents/${agentId}/canary/rollback`, {
     method: "POST",
   });
   if (!res.ok) throw new Error(`Failed to rollback canary: ${res.status}`);
@@ -579,7 +579,7 @@ export async function submitFeedback(
   conversationId?: string,
   comment?: string,
 ): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/feedback`, {
+  const res = await apiFetch(`/api/v1/feedback`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -628,14 +628,14 @@ export interface EvalComparison {
 }
 
 export async function fetchEvalRuns(agentId: string): Promise<EvalRun[]> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/evaluations`);
+  const res = await apiFetch(`/api/v1/agents/${agentId}/evaluations`);
   if (!res.ok) throw new Error(`Failed to fetch eval runs: ${res.status}`);
   const json = await res.json();
   return json.data || [];
 }
 
 export async function triggerEval(agentId: string, datasetName: string, version?: string): Promise<EvalRun> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/evaluations`, {
+  const res = await apiFetch(`/api/v1/agents/${agentId}/evaluations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ dataset_name: datasetName, version: version || "" }),
@@ -646,21 +646,21 @@ export async function triggerEval(agentId: string, datasetName: string, version?
 }
 
 export async function getEvalRun(agentId: string, runId: string): Promise<EvalRun> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/evaluations/${runId}`);
+  const res = await apiFetch(`/api/v1/agents/${agentId}/evaluations/${runId}`);
   if (!res.ok) throw new Error(`Failed to get eval run: ${res.status}`);
   const json = await res.json();
   return json.data;
 }
 
 export async function compareEvalRuns(agentId: string, runA: string, runB: string): Promise<EvalComparison> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/evaluations/compare?a=${runA}&b=${runB}`);
+  const res = await apiFetch(`/api/v1/agents/${agentId}/evaluations/compare?a=${runA}&b=${runB}`);
   if (!res.ok) throw new Error(`Failed to compare eval runs: ${res.status}`);
   const json = await res.json();
   return json.data;
 }
 
 export async function fetchDatasets(agentId: string): Promise<EvalDataset[]> {
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/datasets`);
+  const res = await apiFetch(`/api/v1/agents/${agentId}/datasets`);
   if (!res.ok) throw new Error(`Failed to fetch datasets: ${res.status}`);
   const json = await res.json();
   return json.data || [];
@@ -671,7 +671,7 @@ export async function uploadDataset(agentId: string, name: string, caseCount: nu
     input: `Test case ${i + 1}`,
     expected_output: `Expected output ${i + 1}`,
   }));
-  const res = await fetch(`${API_URL}/api/v1/agents/${agentId}/datasets`, {
+  const res = await apiFetch(`/api/v1/agents/${agentId}/datasets`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, cases }),
@@ -728,21 +728,21 @@ export interface RadarOverview {
 }
 
 export async function fetchRadarOverview(): Promise<RadarOverview> {
-  const res = await fetch(`${API_URL}/api/v1/radar`);
+  const res = await apiFetch(`/api/v1/radar`);
   if (!res.ok) throw new Error(`Failed to fetch radar overview: ${res.status}`);
   const json = await res.json();
   return json.data;
 }
 
 export async function fetchAgentHealth(agentId: string): Promise<AgentHealth> {
-  const res = await fetch(`${API_URL}/api/v1/radar/${agentId}`);
+  const res = await apiFetch(`/api/v1/radar/${agentId}`);
   if (!res.ok) throw new Error(`Failed to fetch agent health: ${res.status}`);
   const json = await res.json();
   return json.data;
 }
 
 export async function fetchAlerts(): Promise<RadarAlert[]> {
-  const res = await fetch(`${API_URL}/api/v1/radar/alerts`);
+  const res = await apiFetch(`/api/v1/radar/alerts`);
   if (!res.ok) throw new Error(`Failed to fetch alerts: ${res.status}`);
   const json = await res.json();
   return json.data || [];
@@ -760,14 +760,14 @@ export interface PlatformConfig {
 }
 
 export async function fetchPlatformConfig(): Promise<PlatformConfig> {
-  const res = await fetch(`${API_URL}/api/v1/platform/config`);
+  const res = await apiFetch(`/api/v1/platform/config`);
   if (!res.ok) throw new Error(`Failed to fetch platform config: ${res.status}`);
   const json = await res.json();
   return json.data;
 }
 
 export async function updatePlatformConfig(cfg: Partial<PlatformConfig>): Promise<PlatformConfig> {
-  const res = await fetch(`${API_URL}/api/v1/platform/config`, {
+  const res = await apiFetch(`/api/v1/platform/config`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(cfg),
@@ -788,7 +788,7 @@ export interface ConnectionTestResult {
 }
 
 export async function testPlatformConnections(): Promise<ConnectionTestResult> {
-  const res = await fetch(`${API_URL}/api/v1/platform/config/test`, { method: "POST" });
+  const res = await apiFetch(`/api/v1/platform/config/test`, { method: "POST" });
   if (!res.ok) throw new Error(`Failed to test connections: ${res.status}`);
   const json = await res.json();
   return json.data;
@@ -807,7 +807,7 @@ export interface SyncResult {
 }
 
 export async function syncFromStateRepo(): Promise<SyncResult> {
-  const res = await fetch(`${API_URL}/api/v1/platform/sync`, { method: "POST" });
+  const res = await apiFetch(`/api/v1/platform/sync`, { method: "POST" });
   if (!res.ok) throw new Error(`Failed to sync: ${res.status}`);
   const json = await res.json();
   return json.data;
@@ -836,14 +836,14 @@ export interface TeamMember {
 }
 
 export async function fetchTeams(): Promise<Team[]> {
-  const res = await fetch(`${API_URL}/api/v1/teams`);
+  const res = await apiFetch(`/api/v1/teams`);
   if (!res.ok) throw new Error(`Failed to fetch teams: ${res.status}`);
   const json = await res.json();
   return json.data || [];
 }
 
 export async function createTeam(name: string, description?: string): Promise<Team> {
-  const res = await fetch(`${API_URL}/api/v1/teams`, {
+  const res = await apiFetch(`/api/v1/teams`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, description: description || "" }),
@@ -854,20 +854,20 @@ export async function createTeam(name: string, description?: string): Promise<Te
 }
 
 export async function getTeam(teamId: string): Promise<{ team: Team; members: TeamMember[] }> {
-  const res = await fetch(`${API_URL}/api/v1/teams/${teamId}`);
+  const res = await apiFetch(`/api/v1/teams/${teamId}`);
   if (!res.ok) throw new Error(`Failed to get team: ${res.status}`);
   return res.json();
 }
 
 export async function deleteTeam(teamId: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/teams/${teamId}`, {
+  const res = await apiFetch(`/api/v1/teams/${teamId}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(`Failed to delete team: ${res.status}`);
 }
 
 export async function addTeamMember(teamId: string, email: string, role: string): Promise<TeamMember> {
-  const res = await fetch(`${API_URL}/api/v1/teams/${teamId}/members`, {
+  const res = await apiFetch(`/api/v1/teams/${teamId}/members`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, role }),
@@ -878,14 +878,14 @@ export async function addTeamMember(teamId: string, email: string, role: string)
 }
 
 export async function removeTeamMember(teamId: string, userId: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/teams/${teamId}/members/${userId}`, {
+  const res = await apiFetch(`/api/v1/teams/${teamId}/members/${userId}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(`Failed to remove team member: ${res.status}`);
 }
 
 export async function updateMemberRole(teamId: string, userId: string, role: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/v1/teams/${teamId}/members/${userId}`, {
+  const res = await apiFetch(`/api/v1/teams/${teamId}/members/${userId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ role }),

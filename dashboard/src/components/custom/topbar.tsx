@@ -166,13 +166,14 @@ function UserAvatar() {
           cursor: "pointer",
         }}
         title="Sign out"
+        data-testid="user-avatar"
         onClick={() => { clearToken(); window.location.href = "/login"; }}
       >
         {initial}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: colors.textPrimary }}>
+          <span data-testid="user-name" style={{ fontSize: 14, fontWeight: 600, color: colors.textPrimary }}>
             {displayName}
           </span>
           {user?.role && (
