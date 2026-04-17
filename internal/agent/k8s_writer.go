@@ -196,8 +196,8 @@ func (w *K8sClientWriter) CreateCanaryDeployment(ctx context.Context, namespace,
 
 	replicas := int64(1)
 
-	// Copy volumes, volumeMounts, and env vars from stable deployment (e.g. GCP SA secret)
-	var volumes, volumeMounts, stableEnv []interface{}
+	// Copy volumes, volumeMounts, env, and envFrom from stable deployment (secrets like discord-bot)
+	var volumes, volumeMounts, stableEnv, stableEnvFrom []interface{}
 	stableDep, err := w.client.Resource(deploymentGVR).Namespace(namespace).Get(ctx, slug, metav1.GetOptions{})
 	if err == nil {
 		volumes, _, _ = unstructured.NestedSlice(stableDep.Object, "spec", "template", "spec", "volumes")
@@ -210,26 +210,33 @@ func (w *K8sClientWriter) CreateCanaryDeployment(ctx context.Context, namespace,
 				if envList, ok := c["env"].([]interface{}); ok {
 					stableEnv = envList
 				}
+				if envFromList, ok := c["envFrom"].([]interface{}); ok {
+					stableEnvFrom = envFromList
+				}
 			}
 		}
 	}
+
+	// Build envFrom: canary ConfigMap + all stable envFrom (secrets)
+	envFrom := []interface{}{
+		map[string]interface{}{
+			"configMapRef": map[string]interface{}{
+				"name": canaryConfigName,
+			},
+		},
+	}
+	envFrom = append(envFrom, stableEnvFrom...)
 
 	// Build container spec
 	container := map[string]interface{}{
 		"name":            slug,
 		"image":           image,
-		"imagePullPolicy": "Never",
+		"imagePullPolicy": "Always",
 		"ports": []interface{}{
 			map[string]interface{}{"containerPort": int64(8000), "name": "http"},
 			map[string]interface{}{"containerPort": int64(8001), "name": "http-control"},
 		},
-		"envFrom": []interface{}{
-			map[string]interface{}{
-				"configMapRef": map[string]interface{}{
-					"name": canaryConfigName,
-				},
-			},
-		},
+		"envFrom": envFrom,
 	}
 	if len(volumeMounts) > 0 {
 		container["volumeMounts"] = volumeMounts
