@@ -1,7 +1,7 @@
+# syntax=docker/dockerfile:1
 FROM node:22-alpine AS builder
 
 # Optional: custom CA certificates (corporate VPN/proxy)
-# Drop .crt or .pem files in certs/
 COPY certs/ /tmp/certs/
 RUN apk add --no-cache ca-certificates && \
     for f in /tmp/certs/*.pem /tmp/certs/*.crt; do \
@@ -12,14 +12,16 @@ ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 COPY . .
 
 ARG NEXT_PUBLIC_API_URL=http://localhost:8080
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build
 
 FROM node:22-alpine
 

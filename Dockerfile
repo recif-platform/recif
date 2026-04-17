@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Multi-stage build that bundles the recif-api Go binary together with the
 # Marée (Python) ingestion CLI so the API can shell out to `maree ingest`
 # when documents are uploaded.
@@ -18,9 +19,12 @@ RUN for f in /tmp/certs/*.pem /tmp/certs/*.crt; do \
     done && update-ca-certificates || true
 
 COPY recif/go.mod recif/go.sum* ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 COPY recif/ .
-RUN CGO_ENABLED=0 go build -o /bin/recif-api ./cmd/api/...
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -o /bin/recif-api ./cmd/api/...
 
 # ── Stage 2: install Marée (Python) into a dedicated venv ───────────────────
 FROM python:3.13-slim AS maree-builder
@@ -30,8 +34,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 COPY maree/pyproject.toml maree/README.md ./
 COPY maree/maree ./maree
-RUN pip install --no-cache-dir uv && uv venv /opt/maree-venv && \
-    . /opt/maree-venv/bin/activate && uv pip install --no-cache-dir ".[vertex]"
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/root/.cache/uv \
+    pip install --no-cache-dir uv && uv venv /opt/maree-venv && \
+    . /opt/maree-venv/bin/activate && uv pip install ".[vertex]"
 
 # ── Stage 3: runtime — slim Python base with Go binary + Marée venv ─────────
 FROM python:3.13-slim
