@@ -52,10 +52,10 @@ func NewHandler(gitClient *gitstate.Client, agentRepo agent.Repository, k8sReade
 	}
 
 	// Subscribe to events that should trigger releases.
-	// AgentDeployed handles both initial creation (Create→Deploy chain) and redeploys.
-	// We do NOT subscribe to AgentCreated to avoid double-versioning in the Create→Deploy flow.
+	// AgentCreated: wizard creates agent → release v1
+	// AgentConfigChanged: config editor saves → release v2, v3...
+	// AgentDeployed is NOT subscribed — deploys use existing releases, they don't create new ones.
 	bus.Subscribe(eventbus.AgentCreated, h.onAgentDeployed)
-	bus.Subscribe(eventbus.AgentDeployed, h.onAgentDeployed)
 	bus.Subscribe(eventbus.AgentConfigChanged, h.onConfigChanged)
 	bus.Subscribe(eventbus.AgentDeleted, h.onAgentDeleted)
 
