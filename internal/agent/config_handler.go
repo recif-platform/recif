@@ -91,6 +91,36 @@ func applyConfigToAgent(a *Agent, req map[string]interface{}) {
 	if v, ok := req["storage"].(string); ok && v != "" {
 		a.Storage = v
 	}
+	if v, ok := req["image"].(string); ok && v != "" {
+		a.Image = v
+	}
+	if v, ok := req["promptRef"].(string); ok {
+		a.PromptRef = v
+	}
+	if v, ok := req["replicas"].(float64); ok {
+		a.Replicas = int32(v)
+	}
+	if v, ok := req["tools"].([]interface{}); ok {
+		tools := make([]string, len(v))
+		for i, t := range v {
+			tools[i], _ = t.(string)
+		}
+		a.Tools = tools
+	}
+	if v, ok := req["skills"].([]interface{}); ok {
+		skills := make([]string, len(v))
+		for i, s := range v {
+			skills[i], _ = s.(string)
+		}
+		a.Skills = skills
+	}
+	if v, ok := req["knowledgeBases"].([]interface{}); ok {
+		kbs := make([]string, len(v))
+		for i, k := range v {
+			kbs[i], _ = k.(string)
+		}
+		a.KnowledgeBases = kbs
+	}
 }
 
 // UpdateSkills handles PUT /api/v1/agents/{id}/skills.
