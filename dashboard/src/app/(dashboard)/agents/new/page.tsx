@@ -297,7 +297,7 @@ export default function CreateAgentWizard() {
           description,
           agent_type: "ready",
           framework: "corail",
-          version: "0.1.0",
+          version: "1",
           model_type: provider,
           model_id: modelId,
           system_prompt: promptMode === "inline" ? systemPrompt : "",
