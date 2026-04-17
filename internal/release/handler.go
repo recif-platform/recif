@@ -160,7 +160,6 @@ func (h *Handler) onAgentDeleted(ctx context.Context, event eventbus.Event) {
 // createReleaseForAgent creates a release, optionally using a pre-built Agent
 // (needed in ArgoCD mode where the CRD doesn't exist yet at create time).
 func (h *Handler) createReleaseForAgent(ctx context.Context, agentID, changelog string, ag *agent.Agent) (int, error) {
-	preBuilt := ag != nil
 	if ag == nil {
 		var err error
 		ag, err = h.agentRepo.Get(ctx, agentID)
@@ -171,7 +170,9 @@ func (h *Handler) createReleaseForAgent(ctx context.Context, agentID, changelog 
 	slug := agentSlug(ag)
 
 	namespace := middleware.NamespaceFromContext(ctx)
-	if !preBuilt && h.k8sReader != nil {
+	// Always enrich from K8s CRD — the pre-built agent from events may have
+	// tools/skills in the config JSONB but not in the struct fields.
+	if h.k8sReader != nil {
 		_ = h.k8sReader.Enrich(ctx, ag, namespace)
 	}
 
