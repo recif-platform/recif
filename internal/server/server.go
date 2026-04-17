@@ -78,7 +78,7 @@ func New(cfg config.Config, logger *slog.Logger, agentRepo agent.Repository, kbS
 		proxyH = agent.NewGrpcProxyHandler(logger, cfg.AgentGRPCURL)
 	} else {
 		logger.Info("using HTTP proxy for agent communication (fallback)", "base_url", cfg.AgentBaseURL)
-		proxyH = agent.NewProxyHandler(logger, cfg.AgentBaseURL)
+		proxyH = agent.NewProxyHandler(logger, cfg.AgentBaseURL, k8sReader)
 	}
 
 	// 2. Create handlers with explicit deps

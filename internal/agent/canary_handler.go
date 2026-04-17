@@ -119,6 +119,13 @@ func (h *CanaryHandler) Start(w http.ResponseWriter, r *http.Request) {
 		challengerConfig = parsed.config
 		challengerModelID = parsed.modelID
 		challengerVersion = fmt.Sprintf("%d", req.ChallengerVersion)
+		challengerConfig["version"] = challengerVersion
+	}
+
+	// Always use the agent's current image (from CRD), not the release artifact's snapshot.
+	// The release may have captured a temporary tag; the CRD image is always authoritative.
+	if agent.Image != "" {
+		challengerConfig["image"] = agent.Image
 	}
 
 	weight := req.Weight
@@ -480,9 +487,15 @@ func parseReleaseConfig(yamlContent string) (releaseConfigResult, error) {
 				ID       string `yaml:"id"`
 			} `yaml:"model"`
 			SystemPrompt string   `yaml:"system_prompt"`
+			PromptRef    string   `yaml:"prompt_ref"`
 			Tools        []string `yaml:"tools"`
 			Skills       []string `yaml:"skills"`
 		} `yaml:"agent"`
+		Runtime struct {
+			Image    string `yaml:"image"`
+			Channel  string `yaml:"channel"`
+			Strategy string `yaml:"strategy"`
+		} `yaml:"runtime"`
 	}
 	if err := yaml.Unmarshal(yamlBytes, &raw); err != nil {
 		return releaseConfigResult{}, fmt.Errorf("unmarshal release: %w", err)
@@ -491,6 +504,18 @@ func parseReleaseConfig(yamlContent string) (releaseConfigResult, error) {
 		"modelType":    raw.Agent.Model.Provider,
 		"modelId":      raw.Agent.Model.ID,
 		"systemPrompt": raw.Agent.SystemPrompt,
+	}
+	if raw.Agent.PromptRef != "" {
+		cfg["promptRef"] = raw.Agent.PromptRef
+	}
+	if raw.Runtime.Image != "" {
+		cfg["image"] = raw.Runtime.Image
+	}
+	if raw.Runtime.Channel != "" {
+		cfg["channel"] = raw.Runtime.Channel
+	}
+	if raw.Runtime.Strategy != "" {
+		cfg["strategy"] = raw.Runtime.Strategy
 	}
 	if len(raw.Agent.Tools) > 0 {
 		cfg["tools"] = raw.Agent.Tools

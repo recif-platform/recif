@@ -211,7 +211,7 @@ func (w *K8sClientWriter) CreateCanaryDeployment(ctx context.Context, namespace,
 	labels := agentLabels(slug, "canary")
 	image, _ := canarySpec["image"].(string)
 	if image == "" {
-		image = "ghcr.io/recif-platform/corail:latest"
+		image = "ghcr.io/recif-platform/corail:v0.1.1"
 	}
 
 	// 1. Copy stable ConfigMap and apply overrides
@@ -247,18 +247,24 @@ func (w *K8sClientWriter) CreateCanaryDeployment(ctx context.Context, namespace,
 		}
 	}
 
-	// Build envFrom: canary ConfigMap + all stable envFrom (secrets)
+	// Build envFrom: canary ConfigMap + stable secrets only (skip stable ConfigMap to avoid overriding canary values)
 	envFrom := []interface{}{
 		map[string]interface{}{
 			"configMapRef": map[string]interface{}{"name": canaryConfigName},
 		},
 	}
-	envFrom = append(envFrom, stableEnvFrom...)
+	for _, entry := range stableEnvFrom {
+		if m, ok := entry.(map[string]interface{}); ok {
+			if _, hasSecret := m["secretRef"]; hasSecret {
+				envFrom = append(envFrom, entry)
+			}
+		}
+	}
 
 	container := map[string]interface{}{
 		"name":            slug,
 		"image":           image,
-		"imagePullPolicy": "Always",
+		"imagePullPolicy": "IfNotPresent",
 		"ports": []interface{}{
 			map[string]interface{}{"containerPort": int64(8000), "name": "http"},
 			map[string]interface{}{"containerPort": int64(8001), "name": "http-control"},
@@ -346,14 +352,19 @@ func (w *K8sClientWriter) createCanaryConfigMap(ctx context.Context, namespace, 
 			data[envKey] = v
 		}
 	}
-
-	if skills, ok := overrides["skills"].([]interface{}); ok {
-		b, _ := json.Marshal(skills)
-		data["CORAIL_SKILLS"] = string(b)
+	// Set canary release version (e.g., "2") so MLflow registers as agent-v2
+	if v, ok := overrides["version"].(string); ok && v != "" {
+		data["RECIF_AGENT_VERSION"] = v
 	}
-	if tools, ok := overrides["tools"].([]interface{}); ok {
-		b, _ := json.Marshal(tools)
-		data["CORAIL_TOOLS"] = string(b)
+
+	// Tools and skills can be []string (from parseReleaseConfig) or []interface{} (from K8s)
+	for _, pair := range []struct{ key, env string }{{"skills", "CORAIL_SKILLS"}, {"tools", "CORAIL_TOOLS"}} {
+		if v := overrides[pair.key]; v != nil {
+			b, _ := json.Marshal(v)
+			if s := string(b); s != "" && s != "null" {
+				data[pair.env] = s
+			}
+		}
 	}
 
 	dataIface := make(map[string]interface{}, len(data))

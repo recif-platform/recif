@@ -178,7 +178,7 @@ func (r *K8sRepository) Create(ctx context.Context, params CreateParams) (*Agent
 		spec["channel"] = "rest"
 	}
 	if spec["image"] == nil {
-		spec["image"] = "ghcr.io/recif-platform/corail:latest"
+		spec["image"] = "ghcr.io/recif-platform/corail:v0.1.1"
 	}
 	spec["replicas"] = int64(1)
 

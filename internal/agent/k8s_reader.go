@@ -151,23 +151,15 @@ func enrichFromCRD(agent *Agent, crd *unstructured.Unstructured) {
 	}
 
 	// Canary spec
-	if canaryRaw, ok := spec["canary"].(map[string]interface{}); ok {
-		enabled, _ := canaryRaw["enabled"].(bool)
-		if enabled {
-			weight := 0
-			if w, ok := canaryRaw["weight"].(int64); ok {
-				weight = int(w)
-			} else if w, ok := canaryRaw["weight"].(float64); ok {
-				weight = int(w)
-			}
-			agent.Canary = &CanaryInfo{
-				Enabled:      true,
-				Weight:       weight,
-				Version:      strField(canaryRaw, "version"),
-				ModelType:    strField(canaryRaw, "modelType"),
-				ModelID:      strField(canaryRaw, "modelId"),
-				SystemPrompt: strField(canaryRaw, "systemPrompt"),
-			}
+	if weight := canaryWeightFromSpec(spec); weight > 0 {
+		canaryRaw, _ := spec["canary"].(map[string]interface{})
+		agent.Canary = &CanaryInfo{
+			Enabled:      true,
+			Weight:       weight,
+			Version:      strField(canaryRaw, "version"),
+			ModelType:    strField(canaryRaw, "modelType"),
+			ModelID:      strField(canaryRaw, "modelId"),
+			SystemPrompt: strField(canaryRaw, "systemPrompt"),
 		}
 	}
 
@@ -248,6 +240,53 @@ func (r *K8sClientReader) GetEvents(ctx context.Context, namespace, slug string)
 	}
 
 	return matched, nil
+}
+
+// CanaryWeight returns the canary traffic weight (0-100) for an agent by slug.
+// Returns 0 if no canary is active or on any error (fail-open for availability).
+func (r *K8sClientReader) CanaryWeight(namespace, slug string) int {
+	if r == nil {
+		return 0
+	}
+	if namespace == "" {
+		namespace = "team-default"
+	}
+	crd, err := r.client.Resource(agentGVR).Namespace(namespace).Get(context.Background(), slug, metav1.GetOptions{})
+	if err != nil {
+		return 0
+	}
+	spec, _ := crd.Object["spec"].(map[string]interface{})
+	return canaryWeightFromSpec(spec)
+}
+
+// canaryWeightFromSpec extracts the canary weight from a CRD spec map.
+// Shared between CanaryWeight (proxy routing) and Enrich (agent enrichment).
+func canaryWeightFromSpec(spec map[string]interface{}) int {
+	canaryRaw, ok := spec["canary"].(map[string]interface{})
+	if !ok {
+		return 0
+	}
+	enabled, _ := canaryRaw["enabled"].(bool)
+	if !enabled {
+		return 0
+	}
+	return intField(canaryRaw, "weight")
+}
+
+// intField extracts an integer from an unstructured map, handling both int64 and float64.
+func intField(m map[string]interface{}, key string) int {
+	v, ok := m[key]
+	if !ok {
+		return 0
+	}
+	switch w := v.(type) {
+	case int64:
+		return int(w)
+	case float64:
+		return int(w)
+	default:
+		return 0
+	}
 }
 
 // findCRD tries multiple name patterns to locate the Agent CRD.

@@ -3,27 +3,79 @@ package agent
 import (
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/sciences44/recif/internal/httputil"
+	"github.com/sciences44/recif/internal/server/middleware"
 )
+
+// CanaryResolver returns the canary weight (0-100) for an agent slug.
+// Returns 0 if no canary is active.
+type CanaryResolver interface {
+	CanaryWeight(namespace, slug string) int
+}
+
+// cachedWeight stores a canary weight with a TTL to avoid K8s API calls on every request.
+type cachedWeight struct {
+	weight    int
+	expiresAt time.Time
+}
 
 // ProxyHandler proxies chat requests to agent Pods in Kubernetes.
 type ProxyHandler struct {
-	logger  *slog.Logger
-	baseURL string
+	logger     *slog.Logger
+	baseURL    string
+	canary     CanaryResolver
+	httpClient *http.Client
+	cacheMu    sync.RWMutex
+	cache      map[string]cachedWeight
 }
 
+const canaryWeightCacheTTL = 10 * time.Second
+
 // NewProxyHandler creates a chat proxy. agentBaseURL uses %s for agent slug.
-func NewProxyHandler(logger *slog.Logger, agentBaseURL string) *ProxyHandler {
+func NewProxyHandler(logger *slog.Logger, agentBaseURL string, canary ...CanaryResolver) *ProxyHandler {
 	if agentBaseURL == "" {
 		agentBaseURL = "http://%s.team-default.svc.cluster.local:8000"
 	}
-	return &ProxyHandler{logger: logger, baseURL: agentBaseURL}
+	h := &ProxyHandler{
+		logger:     logger,
+		baseURL:    agentBaseURL,
+		httpClient: &http.Client{Timeout: 120 * time.Second},
+		cache:      make(map[string]cachedWeight),
+	}
+	if len(canary) > 0 {
+		h.canary = canary[0]
+	}
+	return h
+}
+
+// resolveCanaryWeight returns the cached canary weight, refreshing from K8s if expired.
+func (h *ProxyHandler) resolveCanaryWeight(namespace, slug string) int {
+	if h.canary == nil {
+		return 0
+	}
+	key := namespace + "/" + slug
+
+	h.cacheMu.RLock()
+	if c, ok := h.cache[key]; ok && time.Now().Before(c.expiresAt) {
+		h.cacheMu.RUnlock()
+		return c.weight
+	}
+	h.cacheMu.RUnlock()
+
+	weight := h.canary.CanaryWeight(namespace, slug)
+
+	h.cacheMu.Lock()
+	h.cache[key] = cachedWeight{weight: weight, expiresAt: time.Now().Add(canaryWeightCacheTTL)}
+	h.cacheMu.Unlock()
+	return weight
 }
 
 // Chat proxies POST /api/v1/agents/{id}/chat to the agent Pod control plane.
@@ -98,8 +150,11 @@ func (h *ProxyHandler) proxyTo(w http.ResponseWriter, r *http.Request, method st
 		return
 	}
 
-	// Route to canary variant if requested
+	// Route to canary: explicit query param OR probabilistic based on canary weight
+	namespace := middleware.NamespaceFromContext(r.Context())
 	if r.URL.Query().Get("version") == "canary" {
+		agentSlug = agentSlug + "-canary"
+	} else if weight := h.resolveCanaryWeight(namespace, agentSlug); weight > 0 && rand.Intn(100) < weight {
 		agentSlug = agentSlug + "-canary"
 	}
 
@@ -113,8 +168,7 @@ func (h *ProxyHandler) proxyTo(w http.ResponseWriter, r *http.Request, method st
 	}
 	proxyReq.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 120 * time.Second}
-	resp, err := client.Do(proxyReq)
+	resp, err := h.httpClient.Do(proxyReq)
 	if err != nil {
 		h.logger.Error("proxy failed", "error", err, "target", targetURL)
 		httputil.WriteError(w, http.StatusBadGateway, "Agent Unreachable",
