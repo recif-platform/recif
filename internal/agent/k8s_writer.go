@@ -221,10 +221,15 @@ func (w *K8sClientWriter) CreateCanaryDeployment(ctx context.Context, namespace,
 
 	replicas := int64(1)
 
-	// Copy volumes, volumeMounts, env, and envFrom from stable deployment
+	// Copy volumes, volumeMounts, env, and envFrom from stable deployment.
+	// The stable deployment name includes the version suffix (e.g., test-v-v0-1-0),
+	// so we find it by label selector instead of exact name.
 	var volumes, volumeMounts, stableEnv, stableEnvFrom []interface{}
-	stableDep, err := w.client.Resource(deploymentGVR).Namespace(namespace).Get(ctx, slug, metav1.GetOptions{})
-	if err == nil {
+	depList, err := w.client.Resource(deploymentGVR).Namespace(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("app=%s,version=stable", slug),
+	})
+	if err == nil && len(depList.Items) > 0 {
+		stableDep := &depList.Items[0]
 		volumes, _, _ = unstructured.NestedSlice(stableDep.Object, "spec", "template", "spec", "volumes")
 		containers, _, _ := unstructured.NestedSlice(stableDep.Object, "spec", "template", "spec", "containers")
 		if len(containers) > 0 {
