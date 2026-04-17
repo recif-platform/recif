@@ -270,7 +270,7 @@ export default function CreateAgentWizard() {
           channel,
           tools,
           skills,
-          env_secrets: channel === "discord" ? ["agent-env", "discord-bot"] : ["agent-env"],
+          env_secrets: channel === "discord" ? ["agent-env", `${name.toLowerCase().replace(/\s+/g, "-")}-discord`] : ["agent-env"],
         }),
       });
       const data = await res.json();
@@ -618,8 +618,8 @@ export default function CreateAgentWizard() {
                   </a>
                   , then store the token as a K8s Secret:
                 </p>
-                <code className="block text-xs mt-2" style={{ color: "#22d3ee", fontFamily: "monospace", lineHeight: 1.6 }}>
-                  kubectl create secret generic discord-bot -n team-default --from-literal=DISCORD_BOT_TOKEN=your-token --dry-run=client -o yaml | kubectl apply -f -
+                <code className="block text-xs mt-2" style={{ color: "#22d3ee", fontFamily: "monospace", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                  {`kubectl create secret generic ${name ? name.toLowerCase().replace(/\\s+/g, "-") + "-discord" : "my-agent-discord"} -n team-default \\\n  --from-literal=DISCORD_BOT_TOKEN=your-token`}
                 </code>
                 <p className="text-xs mt-2" style={{ color: "#475569" }}>
                   See{" "}
