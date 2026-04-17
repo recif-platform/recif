@@ -200,19 +200,9 @@ func (h *Handler) createReleaseForAgent(ctx context.Context, agentID, changelog 
 		return 0, fmt.Errorf("commit release: %w", err)
 	}
 
-	// Update CRD spec.version to the release number — this triggers the operator
-	// to rename the deployment (e.g., agent-v2) and Corail to register a new MLflow model.
-	if h.k8sWriter != nil {
-		ns := artifact.Deployment.Namespace
-		if ns == "" {
-			ns = "team-default"
-		}
-		if err := h.k8sWriter.PatchSpec(ctx, ns, slug, map[string]interface{}{
-			"version": fmt.Sprintf("%d", nextVersion),
-		}); err != nil {
-			h.logger.Warn("failed to update CRD version on release", "error", err, "slug", slug, "version", nextVersion)
-		}
-	}
+	// CRD spec.version is NOT patched here — the release is recorded in git-state
+	// but NOT deployed. Deployment happens only via explicit "Deploy" action
+	// (POST /agents/{id}/releases/{version}/deploy) which calls applyCRD().
 
 	h.bus.Emit(ctx, eventbus.Event{
 		Type: eventbus.ReleaseCreated,
