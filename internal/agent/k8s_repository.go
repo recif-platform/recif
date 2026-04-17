@@ -366,6 +366,7 @@ func agentFromCRD(crd *unstructured.Unstructured) *Agent {
 	a.ModelID = strField(spec, "modelId")
 	a.Storage = strField(spec, "storage")
 	a.Image = strField(spec, "image")
+	a.SystemPrompt = strField(spec, "systemPrompt")
 	a.PromptRef = strField(spec, "promptRef")
 	if rv, ok := spec["replicas"]; ok {
 		if ri, ok := rv.(int64); ok {
