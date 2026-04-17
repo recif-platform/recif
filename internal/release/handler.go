@@ -486,6 +486,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 			Timestamp: artifact.Metadata.Timestamp,
 			Changelog: artifact.Metadata.Changelog,
 			Checksum:  artifact.Metadata.Checksum,
+			Artifact:  artifact,
 		})
 	}
 
