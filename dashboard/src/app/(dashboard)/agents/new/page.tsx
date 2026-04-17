@@ -1,8 +1,38 @@
 "use client";
 import { getAuthHeaders } from "@/lib/auth";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
+
+function CopyableCode({ children }: { children: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(children);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [children]);
+  return (
+    <div style={{ position: "relative", marginTop: 8 }}>
+      <code className="block text-xs" style={{ color: "#22d3ee", fontFamily: "monospace", lineHeight: 1.6, whiteSpace: "pre-wrap", paddingRight: 40 }}>
+        {children}
+      </code>
+      <button
+        onClick={handleCopy}
+        style={{
+          position: "absolute", top: 0, right: 0,
+          background: copied ? "rgba(34,197,94,0.2)" : "rgba(34,211,238,0.1)",
+          border: `1px solid ${copied ? "rgba(34,197,94,0.3)" : "rgba(34,211,238,0.2)"}`,
+          borderRadius: 6, padding: "4px 8px", cursor: "pointer",
+          fontSize: 11, fontWeight: 500,
+          color: copied ? "#22c55e" : "#22d3ee",
+          transition: "all 0.2s",
+        }}
+      >
+        {copied ? "Copied!" : "Copy"}
+      </button>
+    </div>
+  );
+}
 import { useTheme } from "@/lib/theme";
 import { inputStyle } from "@/lib/styles";
 
@@ -491,9 +521,7 @@ export default function CreateAgentWizard() {
                 <p className="text-xs" style={{ color: "#94a3b8" }}>
                   Create a K8s Secret with your service account key before deploying:
                 </p>
-                <code className="block text-xs mt-2" style={{ color: "#22d3ee", fontFamily: "monospace", lineHeight: 1.6 }}>
-                  kubectl create secret generic {name ? `${name.toLowerCase().replace(/\s+/g, "-")}` : "{agent}"}-gcp-sa -n team-default --from-file=credentials.json=sa-key.json
-                </code>
+                <CopyableCode>{`kubectl create secret generic ${name ? name.toLowerCase().replace(/\s+/g, "-") : "{agent}"}-gcp-sa -n team-default --from-file=credentials.json=sa-key.json`}</CopyableCode>
               </div>
             )}
           </div>
@@ -618,9 +646,7 @@ export default function CreateAgentWizard() {
                   </a>
                   , then store the token as a K8s Secret:
                 </p>
-                <code className="block text-xs mt-2" style={{ color: "#22d3ee", fontFamily: "monospace", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
-                  {`kubectl create secret generic ${name ? name.toLowerCase().replace(/\\s+/g, "-") + "-discord" : "my-agent-discord"} -n team-default \\\n  --from-literal=DISCORD_BOT_TOKEN=your-token`}
-                </code>
+                <CopyableCode>{`kubectl create secret generic ${name ? name.toLowerCase().replace(/\s+/g, "-") + "-discord" : "my-agent-discord"} -n team-default \\\n  --from-literal=DISCORD_BOT_TOKEN=your-token`}</CopyableCode>
                 <p className="text-xs mt-2" style={{ color: "#475569" }}>
                   See{" "}
                   <a href={`${DOCS_BASE}/guides/channels`} target="_blank" rel="noopener noreferrer" style={{ color: "#22d3ee" }}>
