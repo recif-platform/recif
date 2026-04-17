@@ -157,6 +157,9 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get team BEFORE deleting from DB — we need the namespace for K8s cleanup.
+	team, _ := h.repo.Get(r.Context(), teamID)
+
 	if err := h.repo.Delete(r.Context(), teamID); err != nil {
 		if errors.Is(err, ErrNotFound) {
 			httputil.WriteError(w, http.StatusNotFound, "Not Found", "Team not found", r.URL.Path)
@@ -167,8 +170,11 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Look up team to get namespace before it's gone (team already deleted from DB, but we derived namespace from slug)
-	// For safety, derive namespace from team ID prefix convention
+	// Delete the K8s namespace (cascades all resources inside it).
+	if team != nil && team.Namespace != "" && team.Namespace != "team-default" {
+		h.deleteNamespace(r.Context(), team.Namespace)
+	}
+
 	h.logger.Info("team deleted", "id", teamID)
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{"message": "Team deleted"})
 }
@@ -315,5 +321,19 @@ func (h *Handler) ensureNamespace(ctx context.Context, ns string) {
 			return
 		}
 		h.logger.Warn("failed to create namespace", "namespace", ns, "error", err)
+	}
+}
+
+// deleteNamespace deletes a K8s namespace (cascades all resources inside it).
+func (h *Handler) deleteNamespace(ctx context.Context, ns string) {
+	if h.k8s == nil {
+		return
+	}
+	if err := h.k8s.CoreV1().Namespaces().Delete(ctx, ns, metav1.DeleteOptions{}); err != nil {
+		if !k8serrors.IsNotFound(err) {
+			h.logger.Warn("failed to delete namespace", "namespace", ns, "error", err)
+		}
+	} else {
+		h.logger.Info("namespace deleted", "namespace", ns)
 	}
 }

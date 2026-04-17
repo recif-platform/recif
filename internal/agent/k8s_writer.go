@@ -14,6 +14,10 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
+// Standard label applied to ALL resources owned by an agent.
+// Enables cleanup by label selector: kubectl delete all -l recif.dev/agent={slug}
+const labelAgent = "recif.dev/agent"
+
 // K8sWriter provides mutating operations on K8s agent resources.
 type K8sWriter interface {
 	CreateAgentCRD(ctx context.Context, namespace, slug string, spec map[string]any) error
@@ -28,6 +32,8 @@ type K8sWriter interface {
 	AnnotateResource(ctx context.Context, namespace, resource, name string, annotations map[string]string) error
 	ApplyTrafficSplit(ctx context.Context, namespace, slug string, stableWeight, canaryWeight int) error
 	DeleteTrafficSplit(ctx context.Context, namespace, slug string) error
+	// CleanupAgentResources deletes ALL resources with label recif.dev/agent={slug}.
+	CleanupAgentResources(ctx context.Context, namespace, slug string) error
 }
 
 // K8sClientWriter implements K8sWriter using the Kubernetes dynamic client.
@@ -44,6 +50,15 @@ func NewK8sClientWriter(logger *slog.Logger) *K8sClientWriter {
 	}
 	logger.Info("K8s writer enabled")
 	return &K8sClientWriter{client: client, logger: logger}
+}
+
+// agentLabels returns the standard label set for any resource owned by an agent.
+func agentLabels(slug, version string) map[string]interface{} {
+	return map[string]interface{}{
+		"app":        slug,
+		"version":    version,
+		labelAgent:   slug,
+	}
 }
 
 // CreateAgentCRD creates a new Agent CRD in the cluster.
@@ -144,7 +159,7 @@ func (w *K8sClientWriter) ScaleAgent(ctx context.Context, namespace, slug string
 	return nil
 }
 
-// DeleteAgentPod deletes pods matching the agent slug label, triggering a recreate.
+// DeleteAgentPod deletes pods matching the agent label, triggering a recreate.
 func (w *K8sClientWriter) DeleteAgentPod(ctx context.Context, namespace, slug string) error {
 	if w == nil {
 		return fmt.Errorf("k8s writer not available")
@@ -152,10 +167,16 @@ func (w *K8sClientWriter) DeleteAgentPod(ctx context.Context, namespace, slug st
 
 	podGVR := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
 	podList, err := w.client.Resource(podGVR).Namespace(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app=%s", slug),
+		LabelSelector: fmt.Sprintf("%s=%s", labelAgent, slug),
 	})
 	if err != nil {
-		return fmt.Errorf("list pods for agent %q: %w", slug, err)
+		// Fallback to app label for backward compatibility with operator-managed pods
+		podList, err = w.client.Resource(podGVR).Namespace(namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("app=%s", slug),
+		})
+		if err != nil {
+			return fmt.Errorf("list pods for agent %q: %w", slug, err)
+		}
 	}
 
 	for _, pod := range podList.Items {
@@ -170,13 +191,16 @@ func (w *K8sClientWriter) DeleteAgentPod(ctx context.Context, namespace, slug st
 	return nil
 }
 
-// GVRs for canary deployment management.
+// GVRs for resource management.
 var (
 	deploymentGVR = schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
+	configMapGVR  = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
+	serviceGVR    = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "services"}
+	istioGVR      = schema.GroupVersionResource{Group: "networking.istio.io", Version: "v1", Resource: "virtualservices"}
+	drGVR         = schema.GroupVersionResource{Group: "networking.istio.io", Version: "v1", Resource: "destinationrules"}
 )
 
 // CreateCanaryDeployment creates a canary Deployment with its own ConfigMap.
-// The canary ConfigMap is a copy of the stable ConfigMap with overrides applied.
 func (w *K8sClientWriter) CreateCanaryDeployment(ctx context.Context, namespace, slug string, canarySpec map[string]any) error {
 	if w == nil {
 		return fmt.Errorf("k8s writer not available")
@@ -184,19 +208,20 @@ func (w *K8sClientWriter) CreateCanaryDeployment(ctx context.Context, namespace,
 
 	canaryName := slug + "-canary"
 	canaryConfigName := canaryName + "-config"
+	labels := agentLabels(slug, "canary")
 	image, _ := canarySpec["image"].(string)
 	if image == "" {
 		image = "ghcr.io/recif-platform/corail:latest"
 	}
 
 	// 1. Copy stable ConfigMap and apply overrides
-	if err := w.createCanaryConfigMap(ctx, namespace, slug, canarySpec); err != nil {
+	if err := w.createCanaryConfigMap(ctx, namespace, slug, canarySpec, labels); err != nil {
 		w.logger.Warn("failed to create canary configmap, canary will use env vars only", "error", err)
 	}
 
 	replicas := int64(1)
 
-	// Copy volumes, volumeMounts, env, and envFrom from stable deployment (secrets like discord-bot)
+	// Copy volumes, volumeMounts, env, and envFrom from stable deployment
 	var volumes, volumeMounts, stableEnv, stableEnvFrom []interface{}
 	stableDep, err := w.client.Resource(deploymentGVR).Namespace(namespace).Get(ctx, slug, metav1.GetOptions{})
 	if err == nil {
@@ -220,14 +245,11 @@ func (w *K8sClientWriter) CreateCanaryDeployment(ctx context.Context, namespace,
 	// Build envFrom: canary ConfigMap + all stable envFrom (secrets)
 	envFrom := []interface{}{
 		map[string]interface{}{
-			"configMapRef": map[string]interface{}{
-				"name": canaryConfigName,
-			},
+			"configMapRef": map[string]interface{}{"name": canaryConfigName},
 		},
 	}
 	envFrom = append(envFrom, stableEnvFrom...)
 
-	// Build container spec
 	container := map[string]interface{}{
 		"name":            slug,
 		"image":           image,
@@ -245,7 +267,6 @@ func (w *K8sClientWriter) CreateCanaryDeployment(ctx context.Context, namespace,
 		container["env"] = stableEnv
 	}
 
-	// Build pod spec
 	podSpec := map[string]interface{}{
 		"containers": []interface{}{container},
 	}
@@ -260,10 +281,7 @@ func (w *K8sClientWriter) CreateCanaryDeployment(ctx context.Context, namespace,
 			"metadata": map[string]interface{}{
 				"name":      canaryName,
 				"namespace": namespace,
-				"labels": map[string]interface{}{
-					"app":     slug,
-					"version": "canary",
-				},
+				"labels":    labels,
 			},
 			"spec": map[string]interface{}{
 				"replicas": replicas,
@@ -275,10 +293,7 @@ func (w *K8sClientWriter) CreateCanaryDeployment(ctx context.Context, namespace,
 				},
 				"template": map[string]interface{}{
 					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{
-							"app":     slug,
-							"version": "canary",
-						},
+						"labels": labels,
 						"annotations": map[string]interface{}{
 							"sidecar.istio.io/inject":                      "true",
 							"traffic.sidecar.istio.io/excludeOutboundPorts": "5432",
@@ -299,24 +314,20 @@ func (w *K8sClientWriter) CreateCanaryDeployment(ctx context.Context, namespace,
 }
 
 // createCanaryConfigMap copies the stable ConfigMap and applies canary overrides.
-func (w *K8sClientWriter) createCanaryConfigMap(ctx context.Context, namespace, slug string, overrides map[string]any) error {
-	configMapGVR := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
+func (w *K8sClientWriter) createCanaryConfigMap(ctx context.Context, namespace, slug string, overrides map[string]any, labels map[string]interface{}) error {
 	stableConfigName := slug + "-config"
 	canaryConfigName := slug + "-canary-config"
 
-	// Read stable ConfigMap
 	stableCM, err := w.client.Resource(configMapGVR).Namespace(namespace).Get(ctx, stableConfigName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("read stable configmap: %w", err)
 	}
 
-	// Copy data
 	data, _, _ := unstructured.NestedStringMap(stableCM.Object, "data")
 	if data == nil {
 		data = make(map[string]string)
 	}
 
-	// Apply overrides with CORAIL_ prefix
 	overrideMap := map[string]string{
 		"modelType":    "CORAIL_MODEL_TYPE",
 		"modelId":      "CORAIL_MODEL_ID",
@@ -331,7 +342,6 @@ func (w *K8sClientWriter) createCanaryConfigMap(ctx context.Context, namespace, 
 		}
 	}
 
-	// Handle skills/tools arrays
 	if skills, ok := overrides["skills"].([]interface{}); ok {
 		b, _ := json.Marshal(skills)
 		data["CORAIL_SKILLS"] = string(b)
@@ -341,13 +351,11 @@ func (w *K8sClientWriter) createCanaryConfigMap(ctx context.Context, namespace, 
 		data["CORAIL_TOOLS"] = string(b)
 	}
 
-	// Convert data to map[string]interface{} for unstructured
 	dataIface := make(map[string]interface{}, len(data))
 	for k, v := range data {
 		dataIface[k] = v
 	}
 
-	// Create or update canary ConfigMap
 	cm := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "v1",
@@ -355,12 +363,12 @@ func (w *K8sClientWriter) createCanaryConfigMap(ctx context.Context, namespace, 
 			"metadata": map[string]interface{}{
 				"name":      canaryConfigName,
 				"namespace": namespace,
+				"labels":    labels,
 			},
 			"data": dataIface,
 		},
 	}
 
-	// Try update first, create if not exists
 	_, err = w.client.Resource(configMapGVR).Namespace(namespace).Get(ctx, canaryConfigName, metav1.GetOptions{})
 	if err != nil {
 		_, err = w.client.Resource(configMapGVR).Namespace(namespace).Create(ctx, cm, metav1.CreateOptions{})
@@ -371,32 +379,36 @@ func (w *K8sClientWriter) createCanaryConfigMap(ctx context.Context, namespace, 
 		return fmt.Errorf("create canary configmap: %w", err)
 	}
 
-	w.logger.Info("Canary ConfigMap created", "name", canaryConfigName, "overrides", len(overrides))
+	w.logger.Info("Canary ConfigMap created", "name", canaryConfigName)
 	return nil
 }
 
-// DeleteCanaryDeployment deletes the {slug}-canary Deployment and its ConfigMap.
+// DeleteCanaryDeployment deletes the canary Deployment, ConfigMap, and Service.
 func (w *K8sClientWriter) DeleteCanaryDeployment(ctx context.Context, namespace, slug string) error {
 	if w == nil {
 		return fmt.Errorf("k8s writer not available")
 	}
 
 	canaryName := slug + "-canary"
-	err := w.client.Resource(deploymentGVR).Namespace(namespace).Delete(ctx, canaryName, metav1.DeleteOptions{})
-	if err != nil {
-		return fmt.Errorf("delete canary deployment: %w", err)
+	var errs []string
+
+	if err := w.client.Resource(deploymentGVR).Namespace(namespace).Delete(ctx, canaryName, metav1.DeleteOptions{}); err != nil {
+		errs = append(errs, fmt.Sprintf("deployment %s: %v", canaryName, err))
+	} else {
+		w.logger.Info("Canary deployment deleted", "name", canaryName)
 	}
 
-	w.logger.Info("Canary deployment deleted", "name", canaryName, "namespace", namespace)
+	if err := w.client.Resource(configMapGVR).Namespace(namespace).Delete(ctx, canaryName+"-config", metav1.DeleteOptions{}); err != nil {
+		w.logger.Warn("failed to delete canary configmap", "name", canaryName+"-config", "error", err)
+	}
 
-	// Also clean up canary ConfigMap
-	configMapGVR := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
-	_ = w.client.Resource(configMapGVR).Namespace(namespace).Delete(ctx, canaryName+"-config", metav1.DeleteOptions{})
+	if err := w.client.Resource(serviceGVR).Namespace(namespace).Delete(ctx, canaryName, metav1.DeleteOptions{}); err != nil {
+		w.logger.Warn("failed to delete canary service", "name", canaryName, "error", err)
+	}
 
-	// Also clean up canary Service
-	serviceGVR := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "services"}
-	_ = w.client.Resource(serviceGVR).Namespace(namespace).Delete(ctx, canaryName, metav1.DeleteOptions{})
-
+	if len(errs) > 0 {
+		return fmt.Errorf("canary cleanup errors: %s", strings.Join(errs, "; "))
+	}
 	return nil
 }
 
@@ -406,11 +418,16 @@ func (w *K8sClientWriter) CreateService(ctx context.Context, namespace, name str
 		return fmt.Errorf("k8s writer not available")
 	}
 
-	serviceGVR := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "services"}
-
 	selectorIface := make(map[string]interface{}, len(selector))
 	for k, v := range selector {
 		selectorIface[k] = v
+	}
+
+	// Extract slug from service name (remove -canary suffix if present)
+	slug := strings.TrimSuffix(name, "-canary")
+	version := "stable"
+	if strings.HasSuffix(name, "-canary") {
+		version = "canary"
 	}
 
 	svc := &unstructured.Unstructured{
@@ -420,6 +437,7 @@ func (w *K8sClientWriter) CreateService(ctx context.Context, namespace, name str
 			"metadata": map[string]interface{}{
 				"name":      name,
 				"namespace": namespace,
+				"labels":    agentLabels(slug, version),
 			},
 			"spec": map[string]interface{}{
 				"selector": selectorIface,
@@ -449,7 +467,6 @@ func (w *K8sClientWriter) DeleteService(ctx context.Context, namespace, name str
 		return fmt.Errorf("k8s writer not available")
 	}
 
-	serviceGVR := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "services"}
 	if err := w.client.Resource(serviceGVR).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
 		return fmt.Errorf("delete service %q: %w", name, err)
 	}
@@ -458,7 +475,7 @@ func (w *K8sClientWriter) DeleteService(ctx context.Context, namespace, name str
 	return nil
 }
 
-// AnnotateResource patches annotations on any namespaced resource (used to trigger ArgoCD refresh).
+// AnnotateResource patches annotations on any namespaced resource.
 func (w *K8sClientWriter) AnnotateResource(ctx context.Context, namespace, resource, name string, annotations map[string]string) error {
 	if w == nil {
 		return fmt.Errorf("k8s writer not available")
@@ -474,18 +491,15 @@ func (w *K8sClientWriter) AnnotateResource(ctx context.Context, namespace, resou
 	return err
 }
 
-// findCRDName finds the CRD object name by matching the K8s object name or spec.name
-// to the given agentName (case-insensitive).
+// findCRDName finds the CRD object name by matching the K8s object name or spec.name.
 func (w *K8sClientWriter) findCRDName(ctx context.Context, namespace, agentName string) (string, error) {
 	target := strings.ToLower(agentName)
 
-	// Fast path: try direct lookup by object name (slug)
 	_, err := w.client.Resource(agentGVR).Namespace(namespace).Get(ctx, target, metav1.GetOptions{})
 	if err == nil {
 		return target, nil
 	}
 
-	// Slow path: scan all CRDs and match by spec.name (case-insensitive)
 	list, err := w.client.Resource(agentGVR).Namespace(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return "", fmt.Errorf("list CRDs: %w", err)
@@ -499,29 +513,26 @@ func (w *K8sClientWriter) findCRDName(ctx context.Context, namespace, agentName 
 	return "", fmt.Errorf("CRD not found for agent %q", agentName)
 }
 
-var istioGVR = schema.GroupVersionResource{Group: "networking.istio.io", Version: "v1", Resource: "virtualservices"}
-var drGVR = schema.GroupVersionResource{Group: "networking.istio.io", Version: "v1", Resource: "destinationrules"}
-
 // ApplyTrafficSplit creates or updates Istio VirtualService + DestinationRule for canary traffic splitting.
 func (w *K8sClientWriter) ApplyTrafficSplit(ctx context.Context, namespace, slug string, stableWeight, canaryWeight int) error {
 	if w == nil {
 		return fmt.Errorf("k8s writer not available")
 	}
 	host := fmt.Sprintf("%s.%s.svc.cluster.local", slug, namespace)
+	labels := agentLabels(slug, "traffic-split")
 
-	// DestinationRule — connectionPool settings for SSE streaming
 	dr := &unstructured.Unstructured{Object: map[string]interface{}{
 		"apiVersion": "networking.istio.io/v1",
 		"kind":       "DestinationRule",
-		"metadata":   map[string]interface{}{"name": slug, "namespace": namespace},
+		"metadata":   map[string]interface{}{"name": slug, "namespace": namespace, "labels": labels},
 		"spec": map[string]interface{}{
 			"host": host,
 			"trafficPolicy": map[string]interface{}{
 				"connectionPool": map[string]interface{}{
 					"http": map[string]interface{}{
-						"h2UpgradePolicy":      "UPGRADE",
-						"idleTimeout":          "300s",
-						"maxRequestsPerConnection": int64(0),
+						"h2UpgradePolicy":           "UPGRADE",
+						"idleTimeout":               "300s",
+						"maxRequestsPerConnection":  int64(0),
 					},
 				},
 			},
@@ -542,11 +553,10 @@ func (w *K8sClientWriter) ApplyTrafficSplit(ctx context.Context, namespace, slug
 		return fmt.Errorf("apply DestinationRule: %w", err)
 	}
 
-	// VirtualService
 	vs := &unstructured.Unstructured{Object: map[string]interface{}{
 		"apiVersion": "networking.istio.io/v1",
 		"kind":       "VirtualService",
-		"metadata":   map[string]interface{}{"name": slug, "namespace": namespace},
+		"metadata":   map[string]interface{}{"name": slug, "namespace": namespace, "labels": labels},
 		"spec": map[string]interface{}{
 			"hosts": []interface{}{host},
 			"http": []interface{}{
@@ -586,8 +596,69 @@ func (w *K8sClientWriter) DeleteTrafficSplit(ctx context.Context, namespace, slu
 	if w == nil {
 		return fmt.Errorf("k8s writer not available")
 	}
-	_ = w.client.Resource(istioGVR).Namespace(namespace).Delete(ctx, slug, metav1.DeleteOptions{})
-	_ = w.client.Resource(drGVR).Namespace(namespace).Delete(ctx, slug, metav1.DeleteOptions{})
+
+	if err := w.client.Resource(istioGVR).Namespace(namespace).Delete(ctx, slug, metav1.DeleteOptions{}); err != nil {
+		w.logger.Warn("failed to delete VirtualService", "name", slug, "error", err)
+	}
+	if err := w.client.Resource(drGVR).Namespace(namespace).Delete(ctx, slug, metav1.DeleteOptions{}); err != nil {
+		w.logger.Warn("failed to delete DestinationRule", "name", slug, "error", err)
+	}
 	w.logger.Info("Traffic split deleted", "slug", slug)
+	return nil
+}
+
+// CleanupAgentResources deletes ALL resources labeled with recif.dev/agent={slug}.
+// This is the nuclear option — catches any orphaned canary, configmap, service, or Istio resource.
+func (w *K8sClientWriter) CleanupAgentResources(ctx context.Context, namespace, slug string) error {
+	if w == nil {
+		return nil
+	}
+
+	selector := fmt.Sprintf("%s=%s", labelAgent, slug)
+	opts := metav1.ListOptions{LabelSelector: selector}
+	delOpts := metav1.DeleteOptions{}
+
+	// Delete deployments
+	if list, err := w.client.Resource(deploymentGVR).Namespace(namespace).List(ctx, opts); err == nil {
+		for _, item := range list.Items {
+			if err := w.client.Resource(deploymentGVR).Namespace(namespace).Delete(ctx, item.GetName(), delOpts); err != nil {
+				w.logger.Warn("cleanup: failed to delete deployment", "name", item.GetName(), "error", err)
+			}
+		}
+	}
+
+	// Delete services
+	if list, err := w.client.Resource(serviceGVR).Namespace(namespace).List(ctx, opts); err == nil {
+		for _, item := range list.Items {
+			if err := w.client.Resource(serviceGVR).Namespace(namespace).Delete(ctx, item.GetName(), delOpts); err != nil {
+				w.logger.Warn("cleanup: failed to delete service", "name", item.GetName(), "error", err)
+			}
+		}
+	}
+
+	// Delete configmaps
+	if list, err := w.client.Resource(configMapGVR).Namespace(namespace).List(ctx, opts); err == nil {
+		for _, item := range list.Items {
+			if err := w.client.Resource(configMapGVR).Namespace(namespace).Delete(ctx, item.GetName(), delOpts); err != nil {
+				w.logger.Warn("cleanup: failed to delete configmap", "name", item.GetName(), "error", err)
+			}
+		}
+	}
+
+	// Delete Istio VirtualServices
+	if list, err := w.client.Resource(istioGVR).Namespace(namespace).List(ctx, opts); err == nil {
+		for _, item := range list.Items {
+			_ = w.client.Resource(istioGVR).Namespace(namespace).Delete(ctx, item.GetName(), delOpts)
+		}
+	}
+
+	// Delete Istio DestinationRules
+	if list, err := w.client.Resource(drGVR).Namespace(namespace).List(ctx, opts); err == nil {
+		for _, item := range list.Items {
+			_ = w.client.Resource(drGVR).Namespace(namespace).Delete(ctx, item.GetName(), delOpts)
+		}
+	}
+
+	w.logger.Info("Agent resources cleaned up by label", "slug", slug, "selector", selector)
 	return nil
 }
