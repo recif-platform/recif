@@ -72,15 +72,20 @@ test.describe("MLflow Integration", () => {
     // Restart the agent pod to trigger auto-restore
     await apiCall("POST", `/api/v1/agents/${agents[0].id}/restart`, token);
 
-    // Wait for agent to restart and reconnect to MLflow
-    await new Promise((r) => setTimeout(r, 20_000));
-
-    // Verify experiment is active again (auto-restored by Corail)
-    const restoredRes = await fetch(
-      `${MLFLOW_URL}/api/2.0/mlflow/experiments/get?experiment_id=${experiment.experiment_id}`
-    );
-    const restoredData = await restoredRes.json();
-    expect(restoredData.experiment.lifecycle_stage).toBe("active");
+    // Poll until experiment is restored (max 30s)
+    let restored = false;
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      const checkRes = await fetch(
+        `${MLFLOW_URL}/api/2.0/mlflow/experiments/get?experiment_id=${experiment.experiment_id}`
+      );
+      const checkData = await checkRes.json();
+      if (checkData.experiment?.lifecycle_stage === "active") {
+        restored = true;
+        break;
+      }
+    }
+    expect(restored).toBe(true);
   });
 
   test("logged model appears in MLflow Agent Versions", async () => {
