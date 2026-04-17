@@ -1,5 +1,6 @@
 "use client";
 import { getAuthHeaders } from "@/lib/auth";
+import { fetchPrompts } from "@/lib/api";
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
@@ -207,6 +208,9 @@ export default function CreateAgentWizard() {
   const [modelId, setModelId] = useState("qwen3.5:35b");
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   const [ollamaLoading, setOllamaLoading] = useState(false);
+  const [promptMode, setPromptMode] = useState<"inline" | "registry">("inline");
+  const [promptRef, setPromptRef] = useState("");
+  const [registryPrompts, setRegistryPrompts] = useState<any[]>([]);
   const [systemPrompt, setSystemPrompt] = useState("You are a helpful assistant.");
   const [tools, setTools] = useState<string[]>([]);
   const [skills, setSkills] = useState<string[]>([]);
@@ -296,7 +300,8 @@ export default function CreateAgentWizard() {
           version: "0.1.0",
           model_type: provider,
           model_id: modelId,
-          system_prompt: systemPrompt,
+          system_prompt: promptMode === "inline" ? systemPrompt : "",
+          prompt_ref: promptMode === "registry" ? promptRef : "",
           channel,
           tools,
           skills,
@@ -529,18 +534,84 @@ export default function CreateAgentWizard() {
 
       case "Prompt":
         return (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="block mb-2" style={{ ...labelStyle, color: colors.textMuted }}>System Prompt<DocLink step="Prompt" /></label>
-            <textarea
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              className="w-full rounded-xl text-sm h-40 font-mono outline-none"
-              style={{ padding: "12px 16px", ...inputStyle, resize: "vertical" }}
-              placeholder="You are a helpful assistant."
-              onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(34,211,238,0.3)"; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
-            />
-            <p className="text-xs" style={{ color: "#475569", fontWeight: 400 }}>{systemPrompt.length} characters</p>
+
+            {/* Mode toggle */}
+            <div className="flex gap-2" style={{ marginBottom: 8 }}>
+              <button
+                onClick={() => setPromptMode("inline")}
+                style={{
+                  padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  background: promptMode === "inline" ? "rgba(34,211,238,0.15)" : "transparent",
+                  border: `1px solid ${promptMode === "inline" ? "rgba(34,211,238,0.3)" : "rgba(255,255,255,0.08)"}`,
+                  color: promptMode === "inline" ? "#22d3ee" : colors.textMuted,
+                }}
+              >
+                Write inline
+              </button>
+              <button
+                onClick={() => {
+                  setPromptMode("registry");
+                  if (registryPrompts.length === 0) {
+                    fetchPrompts().then(setRegistryPrompts).catch(() => {});
+                  }
+                }}
+                style={{
+                  padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  background: promptMode === "registry" ? "rgba(34,211,238,0.15)" : "transparent",
+                  border: `1px solid ${promptMode === "registry" ? "rgba(34,211,238,0.3)" : "rgba(255,255,255,0.08)"}`,
+                  color: promptMode === "registry" ? "#22d3ee" : colors.textMuted,
+                }}
+              >
+                From registry
+              </button>
+            </div>
+
+            {promptMode === "inline" ? (
+              <div>
+                <textarea
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  className="w-full rounded-xl text-sm h-40 font-mono outline-none"
+                  style={{ padding: "12px 16px", ...inputStyle, resize: "vertical" }}
+                  placeholder="You are a helpful assistant."
+                  onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(34,211,238,0.3)"; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
+                />
+                <p className="text-xs" style={{ color: "#475569", fontWeight: 400 }}>{systemPrompt.length} characters</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <select
+                  value={promptRef}
+                  onChange={(e) => setPromptRef(e.target.value)}
+                  className="w-full rounded-xl text-sm outline-none"
+                  style={{ padding: "10px 14px", background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.textPrimary }}
+                >
+                  <option value="">Select a prompt...</option>
+                  {registryPrompts.map((p: any) => {
+                    const pName = p.name || p.prompt?.name || "";
+                    return <option key={pName} value={`${pName}@champion`}>{pName}</option>;
+                  })}
+                </select>
+                {promptRef && (
+                  <div style={{ padding: "10px 14px", borderRadius: 12, background: colors.badgeBg, border: `1px solid ${colors.accentBorder}` }}>
+                    <p style={{ fontSize: 12, color: colors.textMuted }}>
+                      Reference: <span style={{ color: "#22d3ee", fontFamily: "monospace" }}>{promptRef}</span>
+                    </p>
+                    <p style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
+                      The agent will load this prompt from MLflow at startup. Set @champion alias on the Prompts page.
+                    </p>
+                  </div>
+                )}
+                {registryPrompts.length === 0 && (
+                  <p style={{ fontSize: 12, color: colors.textMuted, fontStyle: "italic" }}>
+                    No prompts in registry yet. Create one on the <a href="/prompts" style={{ color: "#22d3ee" }}>Prompts page</a>.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         );
 
