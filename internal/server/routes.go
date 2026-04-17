@@ -1,7 +1,10 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -134,6 +137,9 @@ func (s *Server) routes() http.Handler {
 			r.Delete("/integrations/{id}", s.integrationHandler.Delete)
 			r.Post("/integrations/{id}/test", s.integrationHandler.TestConnection)
 
+			// Ollama — list locally available models
+			r.Get("/ollama/models", s.handleOllamaModels)
+
 			// Governance -- Scorecards & Policies
 			r.Get("/risk-profiles", s.evalHandler.ListRiskProfiles)
 			r.Get("/governance/scorecards", s.governanceHandler.ListScorecards)
@@ -190,4 +196,37 @@ func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, map[string]string{"status": "healthy"})
+}
+
+// handleOllamaModels proxies to the Ollama /api/tags endpoint to list locally available models.
+func (s *Server) handleOllamaModels(w http.ResponseWriter, r *http.Request) {
+	ollamaURL := os.Getenv("OLLAMA_BASE_URL")
+	if ollamaURL == "" {
+		ollamaURL = "http://localhost:11434"
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(ollamaURL + "/api/tags")
+	if err != nil {
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"models": []any{}, "error": "Ollama not reachable"})
+		return
+	}
+	defer resp.Body.Close()
+
+	var data struct {
+		Models []struct {
+			Name string `json:"name"`
+			Size int64  `json:"size"`
+		} `json:"models"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"models": []any{}, "error": "Invalid Ollama response"})
+		return
+	}
+
+	names := make([]string, len(data.Models))
+	for i, m := range data.Models {
+		names[i] = m.Name
+	}
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"models": names})
 }

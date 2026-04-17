@@ -175,6 +175,8 @@ export default function CreateAgentWizard() {
   // Ready-to-use state
   const [provider, setProvider] = useState("ollama");
   const [modelId, setModelId] = useState("qwen3.5:35b");
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+  const [ollamaLoading, setOllamaLoading] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState("You are a helpful assistant.");
   const [tools, setTools] = useState<string[]>([]);
   const [skills, setSkills] = useState<string[]>([]);
@@ -225,11 +227,27 @@ export default function CreateAgentWizard() {
     }
   };
 
+  const fetchOllamaModels = async () => {
+    setOllamaLoading(true);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const res = await fetch(`${API_URL}/api/v1/ollama/models`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const models = data.models || [];
+        setOllamaModels(models);
+        if (models.length > 0) setModelId(models[0]);
+      }
+    } catch {} finally { setOllamaLoading(false); }
+  };
+
   const handleProviderChange = (id: string) => {
     setProvider(id);
-    const p = PROVIDERS.find((pr) => pr.id === id);
-    if (p && p.models.length > 0) {
-      setModelId(p.models[0]);
+    if (id === "ollama") {
+      fetchOllamaModels();
+    } else {
+      const p = PROVIDERS.find((pr) => pr.id === id);
+      if (p && p.models.length > 0) setModelId(p.models[0]);
     }
   };
 
@@ -422,9 +440,30 @@ export default function CreateAgentWizard() {
             </div>
             {selectedProvider && (
               <div>
-                <label className="block mb-2 mt-4" style={{ ...labelStyle, color: colors.textMuted }}>Model</label>
+                <div className="flex items-center gap-2 mb-2 mt-4">
+                  <label style={{ ...labelStyle, color: colors.textMuted, margin: 0 }}>Model</label>
+                  {provider === "ollama" && (
+                    <button
+                      onClick={fetchOllamaModels}
+                      disabled={ollamaLoading}
+                      title="Refresh models from Ollama"
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        color: ollamaLoading ? colors.textMuted : "#22d3ee",
+                        fontSize: 14, padding: 2, display: "flex", alignItems: "center",
+                        transition: "transform 0.3s",
+                        transform: ollamaLoading ? "rotate(360deg)" : "rotate(0deg)",
+                      }}
+                    >
+                      &#x21bb;
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-2">
-                  {selectedProvider.models.map((m) => (
+                  {(provider === "ollama" && ollamaModels.length > 0
+                    ? ollamaModels
+                    : selectedProvider.models
+                  ).map((m) => (
                     <button
                       key={m}
                       onClick={() => setModelId(m)}
@@ -439,6 +478,11 @@ export default function CreateAgentWizard() {
                       {m}
                     </button>
                   ))}
+                  {provider === "ollama" && ollamaModels.length === 0 && !ollamaLoading && (
+                    <p style={{ fontSize: 12, color: colors.textMuted, fontStyle: "italic" }}>
+                      Showing default models. Click &#x21bb; to fetch from your Ollama server.
+                    </p>
+                  )}
                 </div>
               </div>
             )}
