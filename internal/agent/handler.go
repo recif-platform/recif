@@ -362,11 +362,16 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete from K8s — operator handles cascade via ownerReferences + finalizer.
-	// K8sRepository.Delete deletes the CRD directly. PostgresRepository deletes from DB.
 	if err := h.repo.Delete(r.Context(), agent.ID); err != nil {
 		h.logger.Error("delete agent failed", "error", err, "id", agent.ID)
 		httputil.WriteError(w, http.StatusInternalServerError, "Delete Failed", "Failed to delete agent", r.URL.Path)
 		return
+	}
+
+	// Clean up canary deployment and service (not managed by operator ownerReferences).
+	if h.k8sWriter != nil {
+		_ = h.k8sWriter.DeleteCanaryDeployment(r.Context(), namespace, slug)
+		_ = h.k8sWriter.DeleteService(r.Context(), namespace, slug+"-canary")
 	}
 
 	// Emit AgentDeleted for audit trail (release handler writes tombstone to Git async).
