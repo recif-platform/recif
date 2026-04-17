@@ -39,6 +39,7 @@ type CreateAgentRequest struct {
 	GCPServiceAccount   string          `json:"gcp_service_account"`
 	EvalSampleRate      int32           `json:"eval_sample_rate"`
 	JudgeModel          string          `json:"judge_model"`
+	PromptRef           string          `json:"prompt_ref"`
 	Config              json.RawMessage `json:"config"`
 }
 

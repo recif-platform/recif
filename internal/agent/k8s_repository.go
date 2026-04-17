@@ -366,6 +366,7 @@ func agentFromCRD(crd *unstructured.Unstructured) *Agent {
 	a.ModelID = strField(spec, "modelId")
 	a.Storage = strField(spec, "storage")
 	a.Image = strField(spec, "image")
+	a.PromptRef = strField(spec, "promptRef")
 	if rv, ok := spec["replicas"]; ok {
 		if ri, ok := rv.(int64); ok {
 			a.Replicas = int32(ri)
@@ -399,6 +400,9 @@ func agentFromCRD(crd *unstructured.Unstructured) *Agent {
 	}
 	if sp := strField(spec, "systemPrompt"); sp != "" {
 		cfg["system_prompt"] = sp
+	}
+	if pr := strField(spec, "promptRef"); pr != "" {
+		cfg["prompt_ref"] = pr
 	}
 	a.Config, _ = json.Marshal(cfg)
 

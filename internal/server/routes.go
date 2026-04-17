@@ -137,6 +137,14 @@ func (s *Server) routes() http.Handler {
 			r.Delete("/integrations/{id}", s.integrationHandler.Delete)
 			r.Post("/integrations/{id}/test", s.integrationHandler.TestConnection)
 
+			// Prompts — MLflow Prompt Registry
+			r.Get("/prompts", s.promptHandler.List)
+			r.Post("/prompts", s.promptHandler.Create)
+			r.Get("/prompts/{name}", s.promptHandler.Get)
+			r.Get("/prompts/{name}/versions/{version}", s.promptHandler.GetVersion)
+			r.Post("/prompts/{name}/aliases", s.promptHandler.SetAlias)
+			r.Delete("/prompts/{name}/aliases/{alias}", s.promptHandler.DeleteAlias)
+
 			// Ollama — list locally available models
 			r.Get("/ollama/models", s.handleOllamaModels)
 

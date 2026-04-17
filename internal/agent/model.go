@@ -17,6 +17,7 @@ type Agent struct {
 	ID          string      `json:"id"`
 	TeamID      string      `json:"team_id"`
 	CreatedBy   string      `json:"created_by,omitempty"`
+	PromptRef   string      `json:"prompt_ref,omitempty"`
 	Name        string      `json:"name"`
 	Slug        string      `json:"slug"`
 	Description string      `json:"description,omitempty"`
@@ -60,6 +61,7 @@ type CreateParams struct {
 	ID          string
 	TeamID      string
 	CreatedBy   string
+	PromptRef   string
 	Name        string
 	Slug        string
 	Description string

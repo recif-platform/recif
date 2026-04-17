@@ -21,6 +21,7 @@ var DBToCRDKeyMap = map[string]string{
 	"suggestions":          "suggestions",
 	"eval_sample_rate":     "evalSampleRate",
 	"judge_model":          "judgeModel",
+	"prompt_ref":           "promptRef",
 }
 
 // crdToDBKeyMap is the inverse of DBToCRDKeyMap (computed at init).

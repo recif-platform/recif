@@ -10,6 +10,7 @@ const navItems = [
   { href: "/agents", label: "Agents", icon: "🤖" },
   { href: "/tools", label: "Tools", icon: "🔧" },
   { href: "/skills", label: "Skills", icon: "✨" },
+  { href: "/prompts", label: "Prompts", icon: "📝" },
   { href: "/knowledge", label: "Knowledge", icon: "📚" },
   { href: "/memory", label: "Memory", icon: "🧠" },
   { href: "/integrations", label: "Integrations", icon: "🔌" },

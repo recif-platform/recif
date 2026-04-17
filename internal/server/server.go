@@ -20,6 +20,7 @@ import (
 	"github.com/sciences44/recif/internal/integration"
 	"github.com/sciences44/recif/internal/kb"
 	"github.com/sciences44/recif/internal/platform"
+	"github.com/sciences44/recif/internal/prompt"
 	"github.com/sciences44/recif/internal/radar"
 	"github.com/sciences44/recif/internal/release"
 	"github.com/sciences44/recif/internal/scaffold"
@@ -50,6 +51,7 @@ type Server struct {
 	teamHandler        *team.Handler
 	platformHandler    *platform.Handler
 	syncHandler        *platform.SyncHandler
+	promptHandler      *prompt.Handler
 	authProvider       auth.AuthProvider
 	authHandler        *auth.Handler
 	userHandler        *user.Handler
@@ -151,6 +153,7 @@ func New(cfg config.Config, logger *slog.Logger, agentRepo agent.Repository, kbS
 		teamHandler:        teamH,
 		platformHandler:    platformHandler,
 		syncHandler:        platform.NewSyncHandler(platformHandler, agentRepo, logger),
+		promptHandler:      prompt.NewHandler(cfg.MLflowURI, logger),
 		authProvider:       jwtProvider,
 		authHandler:        authH,
 		userHandler:        userH,

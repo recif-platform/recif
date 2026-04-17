@@ -718,6 +718,9 @@ func (h *Handler) applyCRD(ctx context.Context, namespace, agentName string, art
 	if artifact.Agent.SystemPrompt != "" {
 		fields["systemPrompt"] = artifact.Agent.SystemPrompt
 	}
+	if artifact.Agent.PromptRef != "" {
+		fields["promptRef"] = artifact.Agent.PromptRef
+	}
 	if len(artifact.Agent.Tools) > 0 {
 		fields["tools"] = artifact.Agent.Tools
 	}

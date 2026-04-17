@@ -64,6 +64,49 @@ export async function fetchCurrentUser(): Promise<CurrentUser> {
   return res.json();
 }
 
+/* ------------------------------------------------------------------ */
+/*  Prompts API (MLflow Prompt Registry)                               */
+/* ------------------------------------------------------------------ */
+
+export async function fetchPrompts(): Promise<any[]> {
+  const res = await apiFetch("/api/v1/prompts");
+  if (!res.ok) return [];
+  const json = await res.json();
+  return json.prompts || [];
+}
+
+export async function createPrompt(name: string, template: string, commitMessage: string): Promise<any> {
+  const res = await apiFetch("/api/v1/prompts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, template, commit_message: commitMessage }),
+  });
+  if (!res.ok) throw new Error(`Failed to create prompt: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchPrompt(name: string): Promise<any> {
+  const res = await apiFetch(`/api/v1/prompts/${encodeURIComponent(name)}`);
+  if (!res.ok) throw new Error(`Prompt not found: ${res.status}`);
+  return res.json();
+}
+
+export async function setPromptAlias(name: string, alias: string, version: number): Promise<void> {
+  const res = await apiFetch(`/api/v1/prompts/${encodeURIComponent(name)}/aliases`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ alias, version }),
+  });
+  if (!res.ok) throw new Error(`Failed to set alias: ${res.status}`);
+}
+
+export async function deletePromptAlias(name: string, alias: string): Promise<void> {
+  const res = await apiFetch(`/api/v1/prompts/${encodeURIComponent(name)}/aliases/${encodeURIComponent(alias)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`Failed to delete alias: ${res.status}`);
+}
+
 export async function fetchUsers(): Promise<CurrentUser[]> {
   const res = await apiFetch("/api/v1/users");
   if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`);

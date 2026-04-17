@@ -49,6 +49,7 @@ type RuntimeConfig struct {
 type AgentConfig struct {
 	Model          ModelConfig  `yaml:"model" json:"model"`
 	SystemPrompt   string       `yaml:"system_prompt" json:"system_prompt"`
+	PromptRef      string       `yaml:"prompt_ref,omitempty" json:"prompt_ref,omitempty"`
 	Skills         []string     `yaml:"skills" json:"skills"`
 	Tools          []string     `yaml:"tools" json:"tools"`
 	KnowledgeBases []string    `yaml:"knowledge_bases" json:"knowledge_bases"`
@@ -159,6 +160,7 @@ func BuildArtifact(agentSlug string, version int, changelog string, a *agent.Age
 				ID:       coalesce(a.ModelID, ""),
 			},
 			SystemPrompt:   systemPrompt,
+			PromptRef:      a.PromptRef,
 			Skills:         orEmpty(skills),
 			Tools:          orEmpty(tools),
 			KnowledgeBases: orEmpty(kbs),
