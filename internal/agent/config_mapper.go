@@ -102,6 +102,7 @@ func MergeAllFieldsIntoConfig(req CreateAgentRequest) json.RawMessage {
 	setIfNotEmpty("model_type", req.ModelType)
 	setIfNotEmpty("model_id", req.ModelID)
 	setIfNotEmpty("system_prompt", req.SystemPrompt)
+	setIfNotEmpty("prompt_ref", req.PromptRef)
 	setIfNotEmpty("strategy", req.Strategy)
 	setIfNotEmpty("channel", req.Channel)
 	setIfNotEmpty("storage", req.Storage)

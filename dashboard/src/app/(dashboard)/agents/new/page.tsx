@@ -246,7 +246,7 @@ export default function CreateAgentWizard() {
       case "Provider":
         return provider.length > 0 && modelId.length > 0;
       case "Prompt":
-        return systemPrompt.trim().length > 0;
+        return promptMode === "inline" ? systemPrompt.trim().length > 0 : promptRef.trim().length > 0;
       case "Framework":
         return framework.length > 0;
       case "Channel":
