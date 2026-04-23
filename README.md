@@ -23,15 +23,45 @@ Recif is the governance and orchestration layer of the [Recif platform](https://
 
 ## Quick Start
 
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
+
 ### Kubernetes (Helm)
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 
 ```bash
 # Prerequisites: Kubernetes cluster, Helm 3, kubectl
 
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
+
 # Add the Helm chart
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 helm install recif charts/recif/ -n recif-system --create-namespace
 
 # Set up admin credentials
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 kubectl create secret generic recif-api-secrets -n recif-system \
   --from-literal=JWT_SECRET="$(openssl rand -base64 32)" \
   --from-literal=ADMIN_EMAIL="you@example.com" \
@@ -39,34 +69,88 @@ kubectl create secret generic recif-api-secrets -n recif-system \
   --from-literal=ADMIN_NAME="Your Name"
 
 # Enable authentication
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 kubectl set env deployment/recif-api AUTH_ENABLED=true -n recif-system
 
 # Access the platform
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 kubectl port-forward svc/recif-api 8080:8080 -n recif-system &
 kubectl port-forward svc/recif-dashboard 3000:3000 -n recif-system &
 
 # Open http://localhost:3000 and login
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 ```
 
 See the [Helm chart docs](https://github.com/recif-platform/helm-charts) for full configuration (Ollama, Vertex AI, MLflow, etc.).
 
 ### Local Development
 
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
+
 ```bash
 # Prerequisites: Go 1.26+, PostgreSQL, Node.js 22+
 
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
+
 # API
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 DATABASE_URL="postgres://recif:recif_dev@localhost:5432/recif?sslmode=disable" \
   go run ./cmd/api/...
 
 # Dashboard (separate terminal)
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 cd dashboard && npm install && npm run dev
 ```
 
 ### Docker
 
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
+
 ```bash
 # Build from the repo root (needs both recif/ and maree/ directories)
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 docker build -f Dockerfile -t recif-api ..
 
 docker run -p 8080:8080 \
@@ -77,6 +161,12 @@ docker run -p 8080:8080 \
 ---
 
 ## Key Features
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 
 - **Agent lifecycle management** -- Full CRUD with K8s CRD integration. Create, deploy, stop, restart, delete agents through the API or dashboard.
 - **Evaluation-driven releases** -- 14 MLflow scorers, golden datasets, quality gates. Releases are blocked until eval scores pass thresholds.
@@ -90,6 +180,12 @@ docker run -p 8080:8080 \
 ---
 
 ## Architecture
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 
 ```
 +---------------------------------------------------------------+
@@ -129,6 +225,12 @@ docker run -p 8080:8080 \
 
 ## API Reference
 
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
+
 The API server exposes ~60 endpoints under `/api/v1`. Key groups:
 
 | Group | Prefix | Description |
@@ -147,6 +249,12 @@ The API server exposes ~60 endpoints under `/api/v1`. Key groups:
 
 ## Environment Variables
 
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATABASE_URL` | -- | PostgreSQL connection string |
@@ -162,6 +270,12 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 ## Related Repositories
 
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
+
 | Repository | Description |
 |------------|-------------|
 | [corail](https://github.com/recif-platform/corail) | Python agent runtime -- the engine inside every agent pod |
@@ -172,7 +286,19 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 ## Roadmap
 
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
+
 ### Core Platform
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 
 | Feature | Status | Description |
 |---------|:------:|-------------|
@@ -192,6 +318,12 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 ### In Progress
 
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
+
 | Feature | Status | Description |
 |---------|:------:|-------------|
 | Agent Marketplace | 🟠 | Users browse and subscribe to published agents |
@@ -200,6 +332,12 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 | Agent memory inheritance | 🟡 | Versioned memory artifacts, inheritable across agents |
 
 ### Planned
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 
 | Feature | Status | Description |
 |---------|:------:|-------------|
@@ -218,6 +356,12 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 ## Contributing
 
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
+
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feat/your-feature`)
 3. Write tests for new functionality
@@ -228,6 +372,12 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 ## Links
 
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
+
 - [Documentation](https://recif-platform.github.io/docs)
 - [Discord](https://discord.gg/P279TT4ZCp)
 - [GitHub Organization](https://github.com/recif-platform)
@@ -235,5 +385,11 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 ---
 
 ## License
+
+<p align="center">
+  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
+  <br/><em>Watch the demo (2 min)</em>
+</p>
+
 
 [Apache License 2.0](LICENSE) -- Copyright 2026 Sciences44.
