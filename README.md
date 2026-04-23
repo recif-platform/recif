@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/recif-platform/recif/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue?style=flat-square" alt="License" /></a>
   <a href="https://github.com/recif-platform/recif/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/recif-platform/recif/ci.yml?style=flat-square&label=CI" alt="CI" /></a>
-  <img src="https://img.shields.io/badge/version-v0.2.0-green?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-v0.3.0-green?style=flat-square" alt="Version" />
   <a href="https://discord.gg/P279TT4ZCp"><img src="https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" /></a>
 </p>
 
@@ -31,19 +31,11 @@ Recif is the governance and orchestration layer of the [Recif platform](https://
 
 ### Kubernetes (Helm)
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 ```bash
 # Prerequisites: Kubernetes cluster, Helm 3, kubectl
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 # Add the Helm chart
@@ -52,10 +44,6 @@ helm install recif charts/recif/ -n recif-system --create-namespace
 
 # Set up admin credentials
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 kubectl create secret generic recif-api-secrets -n recif-system \
   --from-literal=JWT_SECRET="$(openssl rand -base64 32)" \
@@ -65,29 +53,17 @@ kubectl create secret generic recif-api-secrets -n recif-system \
 
 # Enable authentication
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 kubectl set env deployment/recif-api AUTH_ENABLED=true -n recif-system
 
 # Access the platform
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 kubectl port-forward svc/recif-api 8080:8080 -n recif-system &
 kubectl port-forward svc/recif-dashboard 3000:3000 -n recif-system &
 
 # Open http://localhost:3000 and login
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 ```
 
@@ -95,56 +71,32 @@ See the [Helm chart docs](https://github.com/recif-platform/helm-charts) for ful
 
 ### Local Development
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 ```bash
 # Prerequisites: Go 1.26+, PostgreSQL, Node.js 22+
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 # API
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 DATABASE_URL="postgres://recif:recif_dev@localhost:5432/recif?sslmode=disable" \
   go run ./cmd/api/...
 
 # Dashboard (separate terminal)
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 cd dashboard && npm install && npm run dev
 ```
 
 ### Docker
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 ```bash
 # Build from the repo root (needs both recif/ and maree/ directories)
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 docker build -f Dockerfile -t recif-api ..
 
@@ -157,10 +109,6 @@ docker run -p 8080:8080 \
 
 ## Key Features
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 - **Agent lifecycle management** -- Full CRUD with K8s CRD integration. Create, deploy, stop, restart, delete agents through the API or dashboard.
@@ -176,10 +124,6 @@ docker run -p 8080:8080 \
 
 ## Architecture
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 ```
@@ -220,10 +164,6 @@ docker run -p 8080:8080 \
 
 ## API Reference
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 The API server exposes ~60 endpoints under `/api/v1`. Key groups:
@@ -244,10 +184,6 @@ The API server exposes ~60 endpoints under `/api/v1`. Key groups:
 
 ## Environment Variables
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 | Variable | Default | Description |
@@ -265,10 +201,6 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 ## Related Repositories
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 | Repository | Description |
@@ -281,18 +213,10 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 ## Roadmap
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 ### Core Platform
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 | Feature | Status | Description |
@@ -313,10 +237,6 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 ### In Progress
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 | Feature | Status | Description |
@@ -328,10 +248,6 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 ### Planned
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 | Feature | Status | Description |
@@ -351,10 +267,6 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 ## Contributing
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 1. Fork the repository
@@ -367,10 +279,6 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 ## Links
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 - [Documentation](https://recif-platform.github.io/docs)
@@ -381,10 +289,6 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 
 ## License
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
 
 
 [Apache License 2.0](LICENSE) -- Copyright 2026 Sciences44.
