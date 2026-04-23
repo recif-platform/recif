@@ -48,11 +48,6 @@ Recif is the governance and orchestration layer of the [Recif platform](https://
 
 # Add the Helm chart
 
-<p align="center">
-  <a href="https://youtu.be/9n4S8NRI1zA"><img src="https://img.youtube.com/vi/9n4S8NRI1zA/maxresdefault.jpg" alt="Demo" width="560" /></a>
-  <br/><em>Watch the demo (2 min)</em>
-</p>
-
 helm install recif charts/recif/ -n recif-system --create-namespace
 
 # Set up admin credentials
