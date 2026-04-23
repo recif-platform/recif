@@ -229,7 +229,6 @@ See the full [configuration reference](https://recif-platform.github.io/docs) in
 | Canary deployments | 🟢 | Istio traffic splitting, Flagger webhooks, one-click promote/rollback |
 | Secret management | 🟢 | 3 modes: inline, External Secrets (Vault/GCP SM/AWS), Workload Identity |
 | Helm one-command install | 🟢 | Full platform in a single `helm install` |
-
 | Authentication & RBAC | 🟢 | JWT login, user management, role-based access (admin/developer/viewer) |
 | Teams & access control | 🟢 | Team CRUD in PostgreSQL, member management, agent visibility per team, K8s namespace per team |
 | Discord feedback | 🟢 | 👍/👎 reactions logged to MLflow, universal tracing across all channels |
